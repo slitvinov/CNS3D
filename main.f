@@ -119,6 +119,29 @@ C--------SET BOUNDARY TURBULENCE PARAMETRS TO ZERO
                      V(I,J,K) = 0.0
                      W(I,J,K) = 0.0
  121              CONTINUE
+C--------CALCULATE GRID TRANFORAMTION COEFFICIENTS
+C     CALL TRANF
+C--------TURBULENT VISCOSITY
+C     IF(INPRC) CALL NEWVIS
+C--------CALCULATE INLET MASS FLOW RATE
+      FLOWIN=0.0
+      I=1
+      DO 45 J=2,M
+         DO 45 K=2,N
+            U0=(U(I,J,K)+U(I,J-1,K)+U(I,J,K-1)+U(I,J-1,K-1))*0.25
+            DEN0=(DEN(I,J,K)+DEN(I,J-1,K)+DEN(I,J,K-1)+DEN(I,J-1,K-1))
+     1           * 0.25
+            P1=0.0
+            P2=0.0
+            P3=0.0
+            Q1=0.0
+            Q2=0.0
+            Q3=0.0
+            AREA=SQRT(P1*P1+P2*P2+P3*P3)*SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+ 45      CONTINUE
+      ITO=1
+C--------TRANSIENT PROCESS START
+ 1    CONTINUE
  999  CONTINUE
  100  FORMAT(9I5)
  200  FORMAT(11F7.4)
