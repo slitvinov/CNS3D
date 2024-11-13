@@ -104,6 +104,21 @@ C-----RESTART FILE
                DE0(I,J,K)=DE(I,J,K)
                DEN0(I,J,K)=DEN(I,J,K)
  50         CONTINUE
+C************************************************************
+C--------GET BOUNDARY CONTROL PARAMETRS
+C     CALL DIRCOS
+C--------SET BOUNDARY TURBULENCE PARAMETRS TO ZERO
+            DO 121 I=1,L
+               DO 121 J=1,M
+                  DO 121 K=1,N
+                     IF (MC(I,J,K) .NE. 0) GO TO 122
+                     GO TO 121
+ 122                 DK(I,J,K) = 0.0
+                     DE(I,J,K) = 0.0
+                     U(I,J,K) = 0.0
+                     V(I,J,K) = 0.0
+                     W(I,J,K) = 0.0
+ 121              CONTINUE
  999  CONTINUE
  100  FORMAT(9I5)
  200  FORMAT(11F7.4)
