@@ -128,20 +128,29 @@ C--------CALCULATE INLET MASS FLOW RATE
       I=1
       DO 45 J=2,M
          DO 45 K=2,N
-            U0=(U(I,J,K)+U(I,J-1,K)+U(I,J,K-1)+U(I,J-1,K-1))*0.25
-            DEN0=(DEN(I,J,K)+DEN(I,J-1,K)+DEN(I,J,K-1)+DEN(I,J-1,K-1))
+            UC=(U(I,J,K)+U(I,J-1,K)+U(I,J,K-1)+U(I,J-1,K-1))*0.25
+            DENC=(DEN(I,J,K)+DEN(I,J-1,K)+DEN(I,J,K-1)+DEN(I,J-1,K-1))
      1           * 0.25
-            P1=0.0
-            P2=0.0
-            P3=0.0
-            Q1=0.0
-            Q2=0.0
-            Q3=0.0
+            P1=(X(I,J,K)+X(I,J,K-1)-X(I,J-1,K)-X(I,J-1,K-1))*0.5
+            P2=(Y(I,J,K)+Y(I,J,K-1)-Y(I,J-1,K)-Y(I,J-1,K-1))*0.5
+            P3=(Z(I,J,K)+Z(I,J,K-1)-Z(I,J-1,K)-Z(I,J-1,K-1))*0.5
+            Q1=(X(I,J,K)+X(I,J-1,K)-X(I,J,K-1)-X(I,J-1,K-1))*0.5
+            Q2=(Y(I,J,K)+Y(I,J-1,K)-Y(I,J,K-1)-Y(I,J-1,K-1))*0.5
+            Q3=(Z(I,J,K)+Z(I,J-1,K)-Z(I,J,K-1)-Z(I,J-1,K-1))*0.5
             AREA=SQRT(P1*P1+P2*P2+P3*P3)*SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+            FLOWIN=FLOWIN+DENC*AREA*UC
  45      CONTINUE
       ITO=1
 C--------TRANSIENT PROCESS START
+ 2    CONTINUE
+C     CALL SYMOUT(3,1,2,L,2,M,2,N)
+      ITER=1
+C--------SOLUTION PROCEDURES START
  1    CONTINUE
+C     CALL SYMOUT(1,1,2,LT,2,MT,2,NT)
+C     IF(INS0U) CALL SOLVEQ(1,ISWU,ALU,SIGU,ERRU,U,UC)
+C--------CONVERGENCE CHECK
+      WRITE(6,300) ITER,ERRU,ERRV,ERRW,ERRM,ERRK,ERRE,U(7,2,6)
  999  CONTINUE
  100  FORMAT(9I5)
  200  FORMAT(11F7.4)
