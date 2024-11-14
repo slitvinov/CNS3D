@@ -151,6 +151,30 @@ C     CALL SYMOUT(1,1,2,LT,2,MT,2,NT)
 C     IF(INS0U) CALL SOLVEQ(1,ISWU,ALU,SIGU,ERRU,U,UC)
 C--------CONVERGENCE CHECK
       WRITE(6,300) ITER,ERRU,ERRV,ERRW,ERRM,ERRK,ERRE,U(7,2,6)
+      ERRMAX=ERRM+ERRU+ERRV+ERRW
+      IF(ITER .GE. 20 .AND. ERRMAX .GT. 1.E03) GO TO 99
+      IF(ITER .GE. NLIMT .OR. ERRMAX .LE. EREXT) GO TO 99
+      ITER=ITER+1
+      GO TO 1
+C--------PRINT OUT SOLUTION
+ 99   CONTINUE
+      WRITE(7,100) L,M,N,L1,L2,M1,M3,N1,N2
+      DO 901 K=1,N
+         DO 901 I=1,L
+            WRITE(7,400)
+            DO 902 J=1,M
+               XV=X(I,J,K)
+               YV=Y(I,J,K)
+               ZV=Z(I,J,K)
+               WRITE(7,500)XV,YV,ZV,U(I,J,K),V(I,J,K),W(I,J,K),P(I,J,K),
+     1              TM(I,J,K),DK(I,J,K),DE(I,J,K),VISE(I,J,K),DEN(I,J,K)
+ 902        CONTINUE
+ 901     CONTINUE
+      TIMT=DTT*IT0
+      WRITE(7,300) ITO,TIMT
+      IF(ITO .GE. ITT .OR. DTT .EQ. 0.0) GO TO 999
+      ITO=ITO+1
+      GO TO 2
  999  CONTINUE
  100  FORMAT(9I5)
  200  FORMAT(11F7.4)
