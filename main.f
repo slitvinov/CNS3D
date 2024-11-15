@@ -214,6 +214,18 @@ C-----PRESSURE BLOCKAGE : MC(I,J,K)=1
       DO 10 I=1,L0
          DO 10 J=1,M0
             DO 10 K=1,N0
-               MC(I,J,K)=0
+               IF(J.EQ.1.OR.J.EQ.M.OR.K.EQ.N) MC(I,J,K)=1
+C     TODO
+C-----ADD BLOCKAGE AS NEEDED HERE
  10   CONTINUE
+C-----CALCULATE BOUNDARY GRID SIZES AND ORIENTATIONS
+      III=1
+      DO 30 I=2,LT
+         DO 30 J=2,MT
+            DO 30 K=2,NT
+ 30   CONTINUE
+      IIT0=III-1
+      WRITE(6,100) L0,M0,N0,IIT0
+ 100  FORMAT(4I5)
+      RETURN
       END
