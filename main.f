@@ -260,6 +260,96 @@ C-----CALCULATE BOUNDARY GRID SIZES AND ORIENTATIONS
       END
 
       SUBROUTINE SYMOUT(IC,IE,IS,IT,JS,JT,KS,KT)
+      COMMON
+     1   /VAR/U(21,18,10),V(21,18,10),P(21,18,10),DK(21,18,10),
+     2     DE(21,18,10),ERRU,ERRV,ERRM,ERRK,ERRE,ERRW,
+     3     PP(21,18,10),W(21,18,10),TM(21,18,10),
+     1   /PRCP/ VISE(21,18,10),DEN(21,18,10),VISC,DENIN,FLOWIN,
+     1   /PCCR/ CU(21,18,10),DV(21,18,10),DW(21,18,10)
+     1   /COEF/AP(21,18,10),SU(21,18,10),SP(21,18,10),SUK(21,18,10),
+     2     SPK(21,18,10),AE(21,18,10),AW(21,18,10),AN(21,18,10),
+     3     AS(21,18,10),AT(21,18,10),AB(21,18,10),AP0(21,18,10)
+      COMMON
+     1     /TRAN/ X(21,18,10),Y(21,18,10),Z(21,18,10),TJ0(21,18,10),
+     2     CX(21,18,10),CY(21,18,10),CZ(21,18,10),
+     3     EX(21,18,10),EY(21,18,10),EZ(21,18,10),
+     4     SX(21,18,10),SY(21,18,10),SZ(21,18,10)
+     1     /UNSTDY/U0(21,18,10),V0(21,18,10),W0(21,18,10),DK0(21,18,10),
+     2     DE0(21,18,10),DEN0(21,18,10),TM0(21,18,10)
+     1     /LIMIT/ L,M,LT,MT,L1,L2,M1,M2,L0,M0ISWU,ISWV,ISWP,ISWK,ISWE,
+     2     ALU,ALV,ALP,ALK,ALE,ALVIS,ALW,N,N1,N2,N0,ISWW,IG,NT,ALC,DTT
+C-----SYMMETRIC, CYCLIC AND EXIT CONDTIONS AND LINK MODIFICATIONS
+      GO TO (1,2,3), IC
+ 1    CONTINUE
+C-----BOTTOM
+      K=1
+      DO 10 I=1,L
+         DO 10 J=2,MT
+            U(I,J,K)=U(I,J,K+1)
+            V(I,J,K)=V(I,J,K+1)
+            W(I,J,K)=0
+            TM(I,J,K)=TM(I,J,K+1)
+            DK(I,J,K)=DK(I,J,K+1)
+            DE(I,J,K)=DE(I,J,K+1)
+ 10   CONTINUE
+C-----EAST OUT (BASED ON INFLOW MASS FLOW RATE)
+      I=IT
+      FLOW=0.0
+      ARDEN=0.0
+      DO 50 J=2,JT
+         DO 50 K=2,KT
+            UC=(V(I,J,K)+V(I,J-1,K)+V(I,J,K-1)+V(I,J-1,K-1))*0.25
+            DENC=(DEN(I,J,K)+DEN(I,J-1,K)+DEN(I,J,K-1)+DEN(I,J-1,K-1))
+     1           * 0.25
+            P1=(X(I,J,K)+X(I,J,K-1)-X(I,J-1,K)-X(I,J-1,K-1))*0.5
+            P2=(Y(I,J,K)+Y(I,J,K-1)-Y(I,J-1,K)-Y(I,J-1,K-1))*0.5
+            P3=(Z(I,J,K)+Z(I,J,K-1)-Z(I,J-1,K)-Z(I,J-1,K-1))*0.5
+            Q1=(X(I,J,K)+X(I,J-1,K)-X(I,J,K-1)-X(I,J-1,K-1))*0.5
+            Q2=(Y(I,J,K)+Y(I,J-1,K)-Y(I,J,K-1)-Y(I,J-1,K-1))*0.5
+            Q3=(Z(I,J,K)+Z(I,J-1,K)-Z(I,J,K-1)-Z(I,J-1,K-1))*0.5
+            AREA=SQRT(P1*P1+P2*P2+P3*P3)*SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+            FLOW=FLOW+DENC*AREA*UC
+            ARDEN=ARDEN+DENC*AREA
+ 50   CONTINUE
+      UINC=(FLOW-FLOWIN)/ARDEN
+      DO 60 J=2,JT
+         DO 60 K=2,KT
+            U(I+1,J,K)=U(I,J,K)
+            V(I+1,J,K)=V(I,J,K)-UINC
+            W(I+1,J,K)=W(I,J,K)
+            DK(I+1,J,K)=DK(I,J,K)
+            DE(I+1,J,K)=DE(I,J,K)
+ 60   CONTINUE
+      RETURN
+C-----LINK COEF. MODIFICATIONS
+ 2    CONTINUE
+C-----EAST OUT
+      I=IT
+      DO 200 J=2,JT
+         DO 200 K=2,KT
+            AE(I,J,K)=0.0
+ 200     CONTINUE
+      RETURN
+C-----UPDATE UNSTEADY COEFF.
+ 3    CONTINUE
+      IF(DTT .NE. 0.0) GO TO 301
+      DO 300 I=IS,IT
+         DO 300 J=JS,JT
+            DO 300 K=KS,KT
+ 300           AP0(I,J,K)=0.0
+               RETURN
+ 301  CONTINUE
+      DO 310 I=IS,IT
+         DO 310 J=JS,JT
+            DO 310 K=KS,KT
+               AP0(I,J,K)=DEN0(I,J,K)/DTT
+               U0(I,J,K)=U(I,J,K)
+               V0(I,J,K)=V(I,J,K)
+               W0(I,J,K)=W(I,J,K)
+               TM0(I,J,K)=TM(I,J,K)
+               DK0(I,J,K)=DK(I,J,K)
+               DE0(I,J,K)=DE(I,J,K)
+ 310  CONTINUE
       RETURN
       END
 
