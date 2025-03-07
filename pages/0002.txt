@@ -1,0 +1,53 @@
+C ****** CONSTANTS ******
+      ISX=21,E=3
+      ISY=7
+      ISWV=7
+      ISWW=7
+      ISWK=5
+      ISWE=5
+      DENIN=1.0
+      VISC=1./RENL
+      SIGC=1.0
+      SIGE=1.3
+      CMU=0.09
+      C1=1.43
+      C2=1.92
+      E=2.01E9
+      CKEL=.09
+      CEK=2.41592654
+      MTNLM=1.E30
+      SMNLM=1.E-30
+      CMU1=CMU**.25
+      CMU2=CMU**.75
+      INSCU=.TRUE.
+      INSCV=.TRUE.
+      INSCP=.TRUE.
+      INSOK=.TRUE.
+      INSOE=.TRUE.
+      INPRO=.TRUE.
+      INSCT=.FALSE.
+      IF(IG.EQ.2) GC TO 10
+      INSCX=.FALSE.
+      INSCY=.FALSE.
+      INSCZ=.FALSE.
+C ***** READ IN INITIAL FLOW FIELDS FROM RESTART FILE (LU = 8) ******
+      READ(8,100) L,M,N,L1,L2,M1,M2,N1,N2
+      LOEL=1
+      MOSE=1
+      NOSE=1
+      LTEL=1
+      MTEL=1
+      NTEL=1
+C ------ INITIALIZE VARIABLES
+      CALL INIT
+C ------ RESTART FILE
+      DO 50 K=1,N
+      DO 50 I=1,L
+      READ(8,400)
+    1 ((X(I,J,K),J=1,M),(Y(I,J,K),J=1,M),(Z(I,J,K),J=1,M),
+    2 (U(I,J,K),J=1,M),(V(I,J,K),J=1,M),(W(I,J,K),J=1,M),
+    3 P(I,J,K),TM(I,J,K),DK(I,J,K),DE(I,J,K))
+      VISCTM=DENIN
+      U0(I,J,K)=U(I,J,K)
+      V0(I,J,K)=V(I,J,K)
+      W0(I,J,K)=W(I,J,K)
