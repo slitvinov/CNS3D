@@ -1,0 +1,54 @@
+      Q2=Y(I,J,K)-Y(I2,J,K)
+      Q3=Z(I,J,K)-Z(I2,J,K)
+      BB=SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+      AA=SQRT((Q1-P1)**2+(Q2-P2)**2+(Q3-P3)**2)
+      COT=((BB*BB-CC*CC-AA*AA)/(2*BB*CC))
+      YN1(III)=(BB*ASIN(COT)*YN(III))*0.5
+      IJLC(I,J,K)=III
+      III=III+1
+   4 CONTINUE
+   5 CONTINUE
+C------WEST
+      IBC(III)=I
+      JBC(III)=J
+      KBC(III)=K
+      TITY(III)=4
+      I1=I-1
+      J1=J
+      K1=K
+      I2=I-2
+      J2=J
+      K2=K
+      P1=(Y(I1,J,K1)-Y(I1,J,K2))*(Z(I1,J,K1)-Z(I1,J,K2))-
+     1 (X(I1,J,K1)-X(I1,J,K2))*(Z(I2,J,K1)-Z(I2,J,K2))
+      P2=(Y(I2,J,K1)-Y(I2,J,K2))*(Z(I2,J,K1)-Z(I2,J,K2))-
+     1 (X(I2,J,K1)-X(I2,J,K2))*(Z(I2,J,K1)-Z(I2,J,K2))
+      P3=(X(I1,J,K1)-X(I1,J,K2))*(Y(I1,J,K1)-Y(I1,J,K2))-
+     1 (X(I2,J,K1)-X(I2,J,K2))*(Y(I2,J,K1)-Y(I2,J,K2))
+      PQ=SQRT(P1*P1*P2*P2*P3*P3)
+      P1=P1/PC
+      P2=P2/PC
+      P3=P3/PC
+      R1=C1.0-P1*P1
+      R2=C1.0-P2*P2
+      R3=C1.0-P3*P3
+      SINX(III)=SQRT(R1)
+      SINY(III)=SQRT(R2)
+      SINZ(III)=SQRT(R3)
+      Q1=X(I,J,K)-X(I1,J,K)
+      Q2=Y(I,J,K)-Y(I1,J,K)
+      Q3=Z(I,J,K)-Z(I1,J,K)
+      AA=SQRT((Q1-P1)**2+(Q2-P2)**2+(Q3-P3)**2)
+      CC=1.0
+      BB=SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+      COT=((BB*BB-CC*CC-AA*AA)/(2*BB*CC))
+      YN(III)=BB*ASIN(COT)
+      Q1=X(I,J,K)-X(I2,J,K)
+      Q2=Y(I,J,K)-Y(I2,J,K)
+      Q3=Z(I,J,K)-Z(I2,J,K)
+      BB=SQRT(Q1*Q1+Q2*Q2+Q3*Q3)
+      AA=SQRT((Q1-P1)**2+(Q2-P2)**2+(Q3-P3)**2)
+      COT=((BB*BB-CC*CC-AA*AA)/(2*BB*CC))
+      YN1(III)=(BB*ASIN(COT)*YN(III))*0.5
+      IJLC(I,J,K)=III
+      III=III+1
