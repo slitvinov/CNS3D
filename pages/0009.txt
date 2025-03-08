@@ -1,0 +1,51 @@
+      IJLC(I,J,K)=I1I
+      I1I=I1I+1
+      IIJ=I1I+1
+      CONTINUE
+      IF(MC(I,J,K+1) .EQ. 0) GO TO 6
+C --------------------------------------------------------------------
+      I8C(I1I)=I
+      J8C(I1I)=J
+      K8C(I1I)=K
+      I1IY(I1I)=5
+      I1I=I+1
+      I1J=J+1
+      J1=J+1
+      J2=J+1
+      IF(I .EC. L1) I2=I
+      IF(I .EC. L1) I1=I
+      IF(J .EC. M1) J1=J
+      IF(J .EC. M2) J1=J
+      K1=K-1
+      K2=K-2
+      P1=P1+P2*P3
+      P2=P2+P3
+      P3=P3/P1
+      P1=P1+P2
+      P2=1.-P2**2
+      P3=1.-P3**2
+      R3=1.-P3**2
+      S1NX(I1I)=SQRT(R1)
+      S1NY(I1I)=SQRT(R2)
+      S1NZ(I1I)=SQRT(R3)
+      Q1=X(I,J,K)-X(I,J,K1)
+      Q2=Y(I,J,K)-Y(I,J,K1)
+      Q3=Z(I,J,K)-Z(I,J,K1)
+      Q=SQRT(Q1**2+Q2**2+Q3**2)
+      GC=1./Q
+      BB=SQRT(Q1*C1+Q2*C2+Q3*C3)
+      COTH=(BB+BB*CC+CC-AA*AA)/(2*BB*CC)
+      YN(I1I)=S*BB*COTH
+      YN(I1I)=YN(I1I)+S*BB*COTH
+      Q2=Y(I,J,K)-Y(I,J,K2)
+      Q3=Z(I,J,K)-Z(I,J,K2)
+      Q=SQRT(Q1*C1+Q2*C2+Q3*C3)
+      BB=SQRT(Q1*C1+Q2*C2+Q3*C3)
+      COTH=(BB+BB*CC+CC-AA*AA)/(2*BB*CC)
+      YN(I1I)=(YN(I1I)+(BB*ABS(COTH)+YN(I1I)))*.5
+      IJLC(I,J,K)=IIJ
+      IIK=IIJ+1
+      IF(MC(I,J,K-1) .EQ. 0) GO TO 30
+C --------------------------------------------------------------------
+      I8C(I1I)=I
+      J8C(I1I)=J
