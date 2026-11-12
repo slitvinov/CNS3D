@@ -53,9 +53,27 @@ def step(rows, out):
     fig.savefig(out, dpi=150)
 
 
+def reynolds(base, fine, out):
+    fig, a = plt.subplots(figsize=(6, 4.2))
+    for name, color, ls in (("central", BLUE, "-"), ("hybrid", ORANGE, "--")):
+        q = np.loadtxt(f"{ana.R}/fig10_{name}.csv", delimiter=",", skiprows=1)
+        a.plot(q[:, 0], q[:, 1], ls, color=color, lw=1.6, label=f"report, {name}")
+    q = np.loadtxt(f"{ana.R}/fig10_experiment.csv", delimiter=",", skiprows=1)
+    a.plot(q[:, 0], q[:, 1], "o", ms=6, mfc="white", mec=INK, mew=1.2, label="Armaly et al.")
+    a.plot([600], [ana.xr(base)], "s", ms=7, color=AQUA, mec="white", mew=1.5, label="this program, 45×45 (report's grid)")
+    a.plot([600], [ana.xr(fine)], "D", ms=7, color=INK, mec="white", mew=1.5, label="this program, 1409×353")
+    a.set_xlim(0, 820)
+    a.set_xlabel("Re")
+    a.set_ylabel("reattachment length x_r / h")
+    a.legend(frameon=False, fontsize=8, loc="upper left")
+    fig.tight_layout()
+    fig.savefig(out, dpi=150)
+
+
 if __name__ == "__main__":
     w, here = sys.argv[1], os.path.dirname(os.path.abspath(__file__))
-    bend(f"{w}/bend1", f"{w}/bend8", f"{here}/bend.png")
+    bend(f"{w}/bend1", f"{w}/bend8", f"{here}/fig19.png")
     step((("y base", AQUA, ((1, f"{w}/it_lstep1_1e-6"), (4, f"{w}/ls_4_1"), (8, f"{w}/ls_8_1"), (16, f"{w}/ls_16_1"))),
           ("y refined 4 times", BLUE, ((4, f"{w}/ls_4_4"), (8, f"{w}/ls_8_4"), (16, f"{w}/ls_16_4"), (32, f"{w}/ls_32_4"), (40, f"{w}/ls_40_4"))),
           ("y refined 8 times", ORANGE, ((16, f"{w}/ls_16_8"), (32, f"{w}/ls_32_8")))), f"{here}/step.png")
+    reynolds(f"{w}/it_lstep1_1e-6", f"{w}/ls_32_8", f"{here}/fig10.png")

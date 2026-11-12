@@ -58,7 +58,7 @@ The cross-section of *tduct*, *tbendg* and *tbendd* is graded from each wall wit
 
 *Interp.py* replaces the initial field of *fine*/field, except the inlet section i = 1, by the result *coarse*/field.o interpolated linearly: over the point index when *fine* is a refinement of *coarse*, or with **-x** over the x and y coordinates of a step grid.
 
-*Fig.py* draws bend.png, the laminar bend profiles of the 20×17×9 and 153×129×65 grids against the report's Figure 19 and Humphrey's measurements, and step.png, xr of the laminar step against the x spacing, from the results in *workdir*.
+*Fig.py* draws, from the results in *workdir*: fig10.png, xr of the laminar step at Re 600 on the 45×45 and 1409×353 grids over the report's Figure 10 (../../redraw/fig10*); fig19.png, the laminar bend profiles of the 20×17×9 and 153×129×65 grids over the report's Figure 19 and Humphrey's measurements; step.png, xr of the laminar step against the x spacing.
 
 With **-d** it prints the RMS difference of each of the six profiles of each *dir* from those of *ref*, on 49 points across the duct. The profiles are named by angle and plane: 60a is 60 deg, z/d 0; 60b is 60 deg, z/d 0.245.
 
@@ -259,7 +259,7 @@ The turbulent bend, designed streamwise points, 32 intervals per base bend inter
 
 ## FIGURES
 
-bend.png, step.png (*fig.py*).
+fig10.png, fig19.png, step.png (*fig.py*).
 
 ## SOURCE
 
