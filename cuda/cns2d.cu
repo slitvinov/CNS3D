@@ -671,7 +671,7 @@ __global__ void k_pupdate(Box B) {
   R v = 0;
   if (G.act[c] && A(MCF, i, j, k) < 2) {
     R *f = field(PP_, c);
-    R p1 = F(i, j, k) - f[IDX(2, 2, 2)];
+    R p1 = F(i, j, k) - f[IDX(LT - ((LT + i + j + MT / 2) & 1), MT / 2, 2)];
     A(P, i, j, k) += G.alf[c * 8 + 7] * p1;
     v = fabs(p1);
     if (!isfinite(v))

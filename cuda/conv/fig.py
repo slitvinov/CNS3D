@@ -108,14 +108,14 @@ def cavity(runs, out):
 
 
 if __name__ == "__main__":
-    w, here = sys.argv[1], os.path.dirname(os.path.abspath(__file__))
-    bend(f"{w}/bend1", f"{w}/bend8", f"{here}/fig19.svg")
-    step((("y base", AQUA, ((1, f"{w}/it_lstep1_1e-6"), (4, f"{w}/ls_4_1"), (8, f"{w}/ls_8_1"), (16, f"{w}/ls_16_1"))),
+    b, w, here = sys.argv[1], sys.argv[2], os.path.dirname(os.path.abspath(__file__))
+    bend(f"{b}/bend1", f"{b}/bend8", f"{here}/fig19.svg")
+    step((("y base", AQUA, ((1, f"{w}/lstep1"), (4, f"{w}/ls_4_1"), (8, f"{w}/ls_8_1"), (16, f"{w}/ls_16_1"))),
           ("y refined 4 times", BLUE, ((4, f"{w}/ls_4_4"), (8, f"{w}/ls_8_4"), (16, f"{w}/ls_16_4"), (32, f"{w}/ls_32_4"), (40, f"{w}/ls_40_4"))),
           ("y refined 8 times", ORANGE, ((16, f"{w}/ls_16_8"), (32, f"{w}/ls_32_8")))), f"{here}/step.svg")
     reynolds((("this program, hybrid, 45×45", ORANGE, "--", "s", f"{w}/reb_%d", RE),
-              ("this program, central, 45×45", BLUE, "--", "s", f"{w}/rec_%d", RE[:3]),
+              ("this program, central, 45×45", BLUE, "--", "s", f"{w}/rec_%d", RE[:7]),
               ("this program, hybrid, 1409×353", ORANGE, "-", "D", f"{w}/ref_%d", RE),
               ("this program, central, 1409×353", BLUE, "-", "D", f"{w}/recf_%d", RE)), f"{here}/fig10.svg")
     cavity(((("this program, 31×31", AQUA, f"{w}/cau_1"), ("this program, 241×241", BLUE, f"{w}/cau_8")),
-            (("this program, 31×31", AQUA, f"{w}/cab_1"), ("this program, 121×121", BLUE, f"{w}/cab_4"))), f"{here}/fig7.svg")
+            (("this program, 31×31", AQUA, f"{w}/cab_1"), ("this program, 241×241", BLUE, f"{w}/cab_8"))), f"{here}/fig7.svg")

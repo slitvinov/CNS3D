@@ -330,6 +330,12 @@ static void cavity(const char *d, const char *nodes) {
           Y0[i * n0 + j] = Y0[i * n0 + n0 - 1 - j];
           Y0[i * n0 + n0 - 1 - j] = t;
         }
+    for (k = 0; k < n0; k++) {
+      X0[k] = 0;
+      X0[(n0 - 1) * n0 + k] = 1;
+      Y0[k * n0] = 0;
+      Y0[k * n0 + n0 - 1] = 1;
+    }
   }
   for (j = 0; j < n0; j++) {
     for (i = 0; i < n0; i++) {
