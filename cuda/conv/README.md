@@ -2,7 +2,7 @@
 
 ## NAME
 
-gen, ana.py – grid and convergence study of cns3d and cns2d
+gen, ana.py, interp.py, fig.py – grid and convergence study of cns3d and cns2d
 
 ## SYNOPSIS
 
@@ -16,6 +16,10 @@ gen, ana.py – grid and convergence study of cns3d and cns2d
 
 **python3 ana.py** [ **-s** *suffix* ] **-d** *ref dir* ...
 
+**python3 interp.py** [ **-x** ] *coarse fine*
+
+**python3 fig.py** *workdir*
+
 ## DESCRIPTION
 
 *Gen* writes *dir*/control and *dir*/field for one case, with the base grid refined by *factor* in each direction: one factor for all directions, or one for i, one for j and one for k (in *cns2d* cases k is not refined). A direction of *n* points becomes (*n* − 1)·*factor* + 1 points; the base points are kept and the new ones placed by monotone cubic interpolation of the base coordinates over the point index. Refined grids are nested.
@@ -28,6 +32,9 @@ Cases of the report:
     tstepw  tstep with the first spacing at each wall kept
     tstepf  tstep on the grid and inlet that reproduce the report's
             Figures 13 to 15 (../../TESTS, case C), 45 × 42
+    tstepfw tstepf with the first spacing at each wall kept
+    tstepfp tstepf with the inlet u = 8/7 (distance to the nearer
+            wall)^(1/7)
 
 The bend has inner radius 1.8, outer 2.8, four stations before the bend, ten in it and six after, and a developed laminar inlet profile. The laminar step has a 30h channel, x points stretched as exp(0.5 s), uniform y and a parabolic inlet over the upper half; Re 300 on the inlet height is the report's Re 600 on twice that height. The turbulent step has 9 points over the 4h before the step, 36 over 30h after it, stretched as exp(2.5 s), uniform y, a uniform inlet, inlet k from 4 percent intensity and length scale 0.14. *Tstepf* has 3 points before the step, 42 over 15.4h after it, stretched as exp(2.698 s), y spacing reduced towards the walls and the step corner, inlet k from 2.97 percent intensity and length scale 3.741; it is run with hybrid factor 0.792 and flag 8 (no wall function at the step corner). Relaxation is 0.5, except 0.3 for the pressure of *tstep* and 0.7 for the viscosity of the turbulent cases. A grid marked w below is a *tstepw* grid.
 
@@ -48,6 +55,10 @@ The cross-section of *tduct*, *tbendg* and *tbendd* is graded from each wall wit
 
 - step: *xr*, where u on the first row above the lower wall, plane k = 2, changes from negative to non-negative downstream of the step, interpolated linearly;
 - bend: *dp*, the area-weighted mean pressure of the section 1.03 before the bend less that 1.09 after it; *db*, the same from the bend's 0-deg section to its 90-deg section; *ur* and *w*, the largest |u| and |w| on the 90-deg section (u is radial there). Stations are found by centreline arc length. For laminar bends, the RMS difference of the streamwise velocity from the digitized curves of the report's Figure 19 (present), Humphrey's measurements and Rhie's results at 0, 60 and 90 deg, z/d 0 and 0.245 (../../redraw/fig19*). For turbulent bends, the median y+ of the points next to the walls.
+
+*Interp.py* replaces the initial field of *fine*/field, except the inlet section i = 1, by the result *coarse*/field.o interpolated linearly: over the point index when *fine* is a refinement of *coarse*, or with **-x** over the x and y coordinates of a step grid.
+
+*Fig.py* draws bend.png, the laminar bend profiles of the 20×17×9 and 153×129×65 grids against the report's Figure 19 and Humphrey's measurements, and step.png, xr of the laminar step against the x spacing, from the results in *workdir*.
 
 With **-d** it prints the RMS difference of each of the six profiles of each *dir* from those of *ref*, on 49 points across the duct. The profiles are named by angle and plane: 60a is 60 deg, z/d 0; 60b is 60 deg, z/d 0.245.
 
@@ -101,9 +112,10 @@ x and y refined apart, relaxation 0.3, TOL 1.E-6; rows are the x factor, columns
     x 4     9.646    9.922   10.009
     x 8    10.060            10.401
     x 16   10.255            10.581   10.598
-    x 32                     10.666
+    x 32                     10.666   10.695
+    x 40                     10.684
 
-The x 1, y 1 result is the 45×45 run at relaxation 0.5. Iterations: 19420, 28320, 61680; 23710, 50340; 480390, 62320, 186470; 79600. Refining y alone 4 times (45×177) diverged at relaxation 0.3 and 0.05. The 705×353 result, restarted in double precision at TOL 1.E-7, gives 10.609 after 80690 more iterations. The report gives 8.44 with the hybrid scheme and 10.53 with central differencing; Armaly's measurement is 11.45 (../../redraw/fig10*).
+The x 1, y 1 result is the 45×45 run at relaxation 0.5. Iterations: 19420, 28320, 61680; 23710, 50340; 480390, 62320, 186470; 79600, 101580; 69730. The 1409×353 and 1761×177 runs start from the 1409×177 and 353×177 results interpolated (*interp.py*). Refining y alone 4 times (45×177) diverged at relaxation 0.3 and 0.05. The 705×353 result, restarted in double precision at TOL 1.E-7, gives 10.609 after 80690 more iterations. The report gives 8.44 with the hybrid scheme and 10.53 with central differencing; Armaly's measurement is 11.45 (../../redraw/fig10*).
 
 ### Turbulent step
 
@@ -133,7 +145,15 @@ x and y refined apart, relaxation 0.3/0.2, TOL 1.E-6:
 
 The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3, TOL 1.E-5. Iterations: 400000 (*), 57140, 90350; 16580, 154910; 38710, 113430, 39360 (diverged); 176670; 38390, 600000 (*). At 705×337 with relaxation 0.2/0.1 and 0.1/0.05 the runs were stopped at 1000000 iterations with xr 5.775 and 5.773. The 705×169 result, restarted in double precision at TOL 1.E-7, was stopped at 2000000 iterations with the pressure error near 3.E-6: xr 5.727.
 
-*Tstepf* 45×42 at relaxation 0.862/0.556 was stopped at 2000000 iterations with the errors near 1.E-4: xr 5.310. The report gives 5.4h. Chen and Kim (NASA CR-179204, 1987), with second-order upwind differencing on a 51×41 grid, grid independent within 1 percent, give 5.2h for the standard k–ε model on this step. The measurement is about 7h.
+Started from the 353×169, 705×169 and 1409×169 results interpolated, 353×337 diverged at 12610 iterations and 705×337 at 24260; 690×309 w, started from 690×157 w, diverged at 27780.
+
+*Tstepf* 45×42 at relaxation 0.862/0.556 was stopped at 2000000 iterations with the errors near 1.E-4: xr 5.310. The report gives 5.4h. Chen and Kim (NASA CR-179204, 1987), with second-order upwind differencing on a 51×41 grid, grid independent within 1 percent, give 5.2h for the standard k–ε model on this step. The measurement is about 7h. *Tstepf* 45×42, 400000 iterations, not converged, relaxation 0.3/0.2 and 0.1/0.05:
+
+    hybrid factor   flags   xr
+    0.5             0       5.116  5.103
+    0.5             8       5.392  5.386
+    0.792           0       5.061  5.055
+    0.792           8       5.327  5.321
 
 ### Turbulent bend (check case)
 
@@ -237,12 +257,18 @@ The turbulent bend, designed streamwise points, 32 intervals per base bend inter
     ITER=500000 cns3d 352 22 12 list .o
     python3 ana.py g
 
+## FIGURES
+
+bend.png, step.png (*fig.py*).
+
 ## SOURCE
 
-`gen.c`, `ana.py`
+`gen.c`, `ana.py`, `interp.py`, `fig.py`
 
 ## BUGS
 
 Under a CUDA MPS server a fatal error in one run stopped all the runs on that server.
 
-*Tstepf* refined 4, 8 and 16 times and started from the uniform initial field diverged at relaxation 0.3/0.2 (63720, 50 and 13900 iterations), 8 times also at 0.1/0.05 (100 iterations). At 0.3/0.2 the 45×42 and 89×83 runs were stopped at 2000000 iterations with the largest errors near 1.E-4 and 0.03; at 0.1/0.05 the 177×165 run was stopped at 2000000 with errors near 0.2 and the 705×657 run at 1686960 with errors near 0.2.
+*Tstepf* refined 4, 8 and 16 times and started from the uniform initial field diverged at relaxation 0.3/0.2 (63720, 50 and 13900 iterations), 8 times also at 0.1/0.05 (100 iterations). Started from the 45×42 result interpolated, the 177×165, 265×247, 353×329 and 705×657 grids diverged at 28690, 20, 20 and 13610 iterations; at 353×329 also with hybrid factor 0.5, without flag 8, at relaxation 0.05/0.02, with the *tstepfp* inlet, and with the *tstep* inlet k and ε, each in 20 iterations. The first changes grow in k and ε next to the top wall, x −2.9, y 2.97. *Tstepfw*, from the uniform initial field at 0.3/0.2: 346×301 diverged in 20 iterations and 690×597 in 16050; 88×79 was stopped at 1000000 iterations with errors near 0.03.
+
+The Humphrey data of ../../redraw/fig19* hold stray points, at 0 deg (0.43, 1.23) and at 60 deg, z/d 0 four points near U/U_ref 0; the RMS values include them. At 0.3/0.2 the 45×42 and 89×83 runs were stopped at 2000000 iterations with the largest errors near 1.E-4 and 0.03; at 0.1/0.05 the 177×165 run was stopped at 2000000 with errors near 0.2 and the 705×657 run at 1686960 with errors near 0.2.

@@ -94,12 +94,17 @@ def bend(d, suf):
     yk = np.median(np.concatenate(yp)) * 0.09 ** 0.25 * re
     print(f"{d} dp {dp:.4f} db {db:.4f} ur {ur:.3f} w {w:.3f}" + (f" y+ {yk:.1f}" if turb else f" present {rms['present']:.3f} humphrey {rms['humphrey']:.3f} rhie {rms['rhie']:.3f}"))
 
-def step(d, suf):
+def xr(d, suf=".o"):
     a, L, M, N, h = read(d, suf)
     x = a[1, :, 0, 0]
     u = a[1, :, 1, 3]
     z = [float(np.interp(0, [u[i - 1], u[i]], [x[i - 1], x[i]])) for i in range(max(int(h[4]), 2), L) if u[i - 1] < 0 <= u[i]]
-    print(f"{d} xr {z[0]:.3f}" if z else f"{d} xr none")
+    return z[0] if z else None
+
+
+def step(d, suf):
+    z = xr(d, suf)
+    print(f"{d} xr {z:.3f}" if z is not None else f"{d} xr none")
 
 def diff(ref, ds, suf):
     a, L, M, N, h = read(ref, suf)
@@ -111,15 +116,16 @@ def diff(ref, ds, suf):
         print(d, " ".join(f"{th}{pn} {np.sqrt(np.mean((np.interp(x, *P[(th, pn)]) - np.interp(x, *P0[(th, pn)])) ** 2)):.3f}"
                           for th in STATIONS for pn, _ in PLANES))
 
-a = sys.argv[1:]
-suf = ".o"
-if a and a[0] == "-s":
-    suf, a = a[1], a[2:]
-if a and a[0] == "-d":
-    diff(a[1], a[2:], suf)
-else:
-    for d in a:
-        if int(open(f"{d}/field").readline().split()[2]) > 4:
-            bend(d, suf)
-        else:
-            step(d, suf)
+if __name__ == "__main__":
+    a = sys.argv[1:]
+    suf = ".o"
+    if a and a[0] == "-s":
+        suf, a = a[1], a[2:]
+    if a and a[0] == "-d":
+        diff(a[1], a[2:], suf)
+    else:
+        for d in a:
+            if int(open(f"{d}/field").readline().split()[2]) > 4:
+                bend(d, suf)
+            else:
+                step(d, suf)

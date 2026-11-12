@@ -363,7 +363,7 @@ static void tstep(const char *d, int keep, int fit) {
       fputs("\n\n", out);
       for (j = 0; j < M; j++) {
         int wall = j == 0 || j == M - 1 || (i < Is && j < Js);
-        row(x[i], y[j], (k - 0.5) * dz, wall ? 0 : (x[i] <= 0 ? 1 : 2.0 / 3), 0, 0, k0, e0);
+        row(x[i], y[j], (k - 0.5) * dz, wall ? 0 : x[i] > 0 ? 2.0 / 3 : fit == 2 ? 8.0 / 7 * pow(fmin(y[j] - 1, 3 - y[j]), 1.0 / 7) : 1, 0, 0, k0, e0);
       }
     }
   finish();
@@ -399,7 +399,7 @@ int main(int argc, char **argv) {
     return 0;
   }
   if (argc != 4 || (r = factors(argv[2])) < 1)
-    die("usage: gen bend|tbend|tbendw|lstep|tstep|tstepw|tstepf|tduct factor[,factor[,factor]] dir | gen tbendg factor dir inlet [streamwise-factor] | gen tbendd factor dir inlet bend-factor");
+    die("usage: gen bend|tbend|tbendw|lstep|tstep|tstepw|tstepf|tstepfw|tstepfp|tduct factor[,factor[,factor]] dir | gen tbendg factor dir inlet [streamwise-factor] | gen tbendd factor dir inlet bend-factor");
   if (!strcmp(argv[1], "bend"))
     bend(argv[3], 0, 0);
   else if (!strcmp(argv[1], "tbend"))
@@ -414,6 +414,10 @@ int main(int argc, char **argv) {
     tstep(argv[3], 1, 0);
   else if (!strcmp(argv[1], "tstepf"))
     tstep(argv[3], 0, 1);
+  else if (!strcmp(argv[1], "tstepfw"))
+    tstep(argv[3], 1, 1);
+  else if (!strcmp(argv[1], "tstepfp"))
+    tstep(argv[3], 0, 2);
   else if (!strcmp(argv[1], "tduct"))
     tduct(argv[3], r);
   else
