@@ -65,6 +65,8 @@ enum {
   TXYN_,
   TXYS_,
   F1_,
+  LP_,
+  LQ_,
   NA_
 };
 
@@ -325,54 +327,46 @@ __device__ void wmax(int c, int slot, R v) {
   } else
     atomicMaxD(&G.err[c * 8 + slot], v);
 }
-__global__ void k_sweep(Box B, int fv, int color) {
-  CELL(B);
-  if (!G.act[c] || ((i + j) & 1) != color)
+__global__ void k_jline(Box B, int fv, int color) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x, ni = B.i1 - B.i0 + 1;
+  if (tid >= ni * NB)
     return;
-  R *f = field(fv, c);
-  F(i, j) = (A(AE, i, j) * F(i + 1, j) + A(AN, i, j) * F(i, j + 1) + A(SU, i, j) +
-             A(AW, i, j) * F(i - 1, j) + A(AS, i, j) * F(i, j - 1)) /
-            (A(AP, i, j) + (R)1e-30);
+  int c = tid / ni, i = B.i0 + tid % ni;
+  if (!G.act[c] || (i & 1) != color)
+    return;
+  R *f = field(fv, c), pp = 0, qq = F(i, B.j0 - 1);
+  for (int j = B.j0; j <= B.j1; j++) {
+    R as = A(AS, i, j), t = (R)1 / (A(AP, i, j) - as * pp + (R)1e-30);
+    pp = A(AN, i, j) * t;
+    qq = (A(AE, i, j) * F(i + 1, j) + A(AW, i, j) * F(i - 1, j) + A(SU, i, j) + as * qq) * t;
+    A(LP, i, j) = pp;
+    A(LQ, i, j) = qq;
+  }
+  R x = F(i, B.j1 + 1);
+  for (int j = B.j1; j >= B.j0; j--) {
+    x = A(LP, i, j) * x + A(LQ, i, j);
+    F(i, j) = x;
+  }
 }
-__global__ void __launch_bounds__(1024) k_sweeps(Box B, int fv, int nsw) {
-  extern __shared__ R sh[];
-  int c = blockIdx.x;
-  if (c >= NB || !G.act[c])
+__global__ void k_iline(Box B, int fv, int color) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x, nj = B.j1 - B.j0 + 1;
+  if (tid >= nj * NB)
     return;
-  int ni = B.i1 - B.i0 + 1, nj = B.j1 - B.j0 + 1, np = ni * nj, fi = ni + 2;
-  R *cf = sh, *fs = sh + 6 * np;
-  R *f = field(fv, c);
-#define CIX(q, ii, jj) cf[(q) * np + (jj) * ni + (ii)]
-#define FIX(ii, jj) fs[(jj) * fi + (ii)]
-  int ids[6] = {AE_, AN_, SU_, AW_, AS_, AP_};
-  enum { cE, cN, cSU, cW, cS, cP };
-  for (int t = threadIdx.x; t < 6 * np; t += blockDim.x) {
-    int q = t / np, r = t % np, jj = r / ni, ii = r % ni;
-    cf[t] = G.a[ids[q]][(size_t)c * NT + IDX(B.i0 + ii, B.j0 + jj)];
+  int c = tid / nj, j = B.j0 + tid % nj;
+  if (!G.act[c] || (j & 1) != color)
+    return;
+  R *f = field(fv, c), pp = 0, qq = F(B.i0 - 1, j);
+  for (int i = B.i0; i <= B.i1; i++) {
+    R aw = A(AW, i, j), t = (R)1 / (A(AP, i, j) - aw * pp + (R)1e-30);
+    pp = A(AE, i, j) * t;
+    qq = (A(AN, i, j) * F(i, j + 1) + A(AS, i, j) * F(i, j - 1) + A(SU, i, j) + aw * qq) * t;
+    A(LP, i, j) = pp;
+    A(LQ, i, j) = qq;
   }
-  for (int t = threadIdx.x; t < (nj + 2) * fi; t += blockDim.x) {
-    int jj = t / fi, ii = t % fi;
-    fs[t] = f[IDX(B.i0 - 1 + ii, B.j0 - 1 + jj)];
-  }
-  __syncthreads();
-  for (int s = 0; s < nsw; s++)
-    for (int color = 0; color < 2; color++) {
-      int nh = (ni + 1) / 2;
-      for (int t = threadIdx.x; t < nh * nj; t += blockDim.x) {
-        int jj = t / nh, ii = 2 * (t % nh) + ((color + B.i0 + B.j0 + jj) & 1);
-        if (ii >= ni)
-          continue;
-        FIX(ii + 1, jj + 1) =
-            (CIX(cE, ii, jj) * FIX(ii + 2, jj + 1) + CIX(cN, ii, jj) * FIX(ii + 1, jj + 2) +
-             CIX(cSU, ii, jj) + CIX(cW, ii, jj) * FIX(ii, jj + 1) +
-             CIX(cS, ii, jj) * FIX(ii + 1, jj)) /
-            (CIX(cP, ii, jj) + (R)1e-30);
-      }
-      __syncthreads();
-    }
-  for (int t = threadIdx.x; t < np; t += blockDim.x) {
-    int jj = t / ni, ii = t % ni;
-    f[IDX(B.i0 + ii, B.j0 + jj)] = FIX(ii + 1, jj + 1);
+  R x = F(B.i1 + 1, j);
+  for (int i = B.i1; i >= B.i0; i--) {
+    x = A(LP, i, j) * x + A(LQ, i, j);
+    F(i, j) = x;
   }
 }
 __global__ void k_err(Box B, int fv, int slot) {
@@ -716,19 +710,13 @@ static long cnt(Box b) {
   } while (0)
 
 static void sweeps(Box b, int fv, int nsw) {
-  static int shared_set;
   int ni = b.i1 - b.i0 + 1, nj = b.j1 - b.j0 + 1;
-  size_t sz = sizeof(R) * ((size_t)6 * ni * nj + (size_t)(ni + 2) * (nj + 2));
-  if (sz <= 227 * 1024) {
-    if (!shared_set) {
-      cudaFuncSetAttribute(k_sweeps, cudaFuncAttributeMaxDynamicSharedMemorySize, 227 * 1024);
-      shared_set = 1;
-    }
-    k_sweeps<<<hNB, 1024, sz, stream>>>(b, fv, nsw);
-  } else
-    for (int s = 0; s < nsw; s++)
-      for (int color = 0; color < 2; color++)
-        k_sweep<<<nblk((long)ni * nj * hNB), 256, 0, stream>>>(b, fv, color);
+  for (int s = 0; s < nsw; s++) {
+    for (int color = 0; color < 2; color++)
+      k_jline<<<nblk((long)ni * hNB), 256, 0, stream>>>(b, fv, color);
+    for (int color = 0; color < 2; color++)
+      k_iline<<<nblk((long)nj * hNB), 256, 0, stream>>>(b, fv, color);
+  }
 }
 
 static void solveq(int ie, int fv) {
