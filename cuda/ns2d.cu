@@ -479,6 +479,47 @@ __global__ void k_pdiag(Box B) {
     A(SU, i, j) = 0;
   }
 }
+__global__ void k_pmean(Box B, R *flow) {
+  int c = blockIdx.x;
+  if (c >= NB || !G.act[c])
+    return;
+  int ni = B.i1 - B.i0 + 1, nn = ni * (B.j1 - B.j0 + 1);
+  __shared__ double sm[2][512], sn[2][512];
+  double s0 = 0, s1 = 0, n0 = 0, n1 = 0;
+  for (int t = threadIdx.x; t < nn; t += blockDim.x) {
+    int i = B.i0 + t % ni, j = B.j0 + t / ni;
+    if (A(MCF, i, j) >= 2)
+      continue;
+    if ((i + j) & 1) {
+      s1 += A(SU, i, j);
+      n1 += 1;
+    } else {
+      s0 += A(SU, i, j);
+      n0 += 1;
+    }
+  }
+  sm[0][threadIdx.x] = s0;
+  sm[1][threadIdx.x] = s1;
+  sn[0][threadIdx.x] = n0;
+  sn[1][threadIdx.x] = n1;
+  __syncthreads();
+  for (int o = blockDim.x / 2; o > 0; o >>= 1) {
+    if (threadIdx.x < o)
+      for (int q = 0; q < 2; q++) {
+        sm[q][threadIdx.x] += sm[q][threadIdx.x + o];
+        sn[q][threadIdx.x] += sn[q][threadIdx.x + o];
+      }
+    __syncthreads();
+  }
+  R m0 = sn[0][0] > 0 ? sm[0][0] / sn[0][0] : 0, m1 = sn[1][0] > 0 ? sm[1][0] / sn[1][0] : 0;
+  if (threadIdx.x == 0 && !(G.flg[c] & 16))
+    flow[2 * NB + c] += (sm[0][0] + sm[1][0]) / flow[NB + c];
+  for (int t = threadIdx.x; t < nn; t += blockDim.x) {
+    int i = B.i0 + t % ni, j = B.j0 + t / ni;
+    if (A(MCF, i, j) < 2)
+      A(SU, i, j) -= ((i + j) & 1) ? m1 : m0;
+  }
+}
 __global__ void k_pblock(Box B, R *wk) {
   extern __shared__ R sh[];
   int c = blockIdx.x;
@@ -601,8 +642,10 @@ __global__ void k_outflow(R *flow) {
     }
     __syncthreads();
   }
-  if (threadIdx.x == 0)
-    flow[c] = (s1[0] - G.flowin[c]) / s2[0];
+  if (threadIdx.x == 0) {
+    flow[NB + c] = s2[0];
+    flow[c] = (s1[0] - G.flowin[c]) / s2[0] - flow[2 * NB + c];
+  }
 }
 __global__ void k_outlet(Box B, R *uinc) {
   DECODE(B);
@@ -752,6 +795,7 @@ static void solvep(void) {
   RUN(k_pflux, in, 2);
   RUN(k_pcoef, in);
   RUN(k_pdiag, in);
+  k_pmean<<<hNB, 512, 0, stream>>>(in, d_flow);
   k_pblock<<<hNB, 512, PBLOCK_SHARED, stream>>>(in, d_wk);
   RUN(k_pblock_set, in, d_wk);
   sweeps(in, PP_, nsweep[0]);
@@ -1279,7 +1323,8 @@ static void upload_all(void) {
   hs.err = (R *)dalloc(sizeof(R) * hNB * 8);
   d_wk = (R *)dalloc(sizeof(R) * hNB * hDI);
   CK(cudaFuncSetAttribute(k_pblock, cudaFuncAttributeMaxDynamicSharedMemorySize, PBLOCK_SHARED));
-  d_flow = (R *)dalloc(sizeof(R) * hNB);
+  d_flow = (R *)dalloc(sizeof(R) * 3 * hNB);
+  CK(cudaMemset(d_flow, 0, sizeof(R) * 3 * hNB));
   CK(cudaMemcpyToSymbol(G, &hs, sizeof(S)));
   SETI(DI, hDI);
   SETI(DJ, hDJ);
