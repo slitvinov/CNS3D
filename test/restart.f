@@ -1,0 +1,15 @@
+      PROGRAM RESTART
+      OPEN(1,FILE='field.txt')
+      READ(1,*) L,M,N,L1,L2,M1,M2,N1,N2
+      WRITE(8,100) L,M,N,L1,L2,M1,M2,N1,N2
+      DO 50 K=1,N
+      DO 50 I=1,L
+      WRITE(8,400)
+      DO 50 J=1,M
+      READ(1,*) X,Y,Z,U,V,W,TK,TE
+      WRITE(8,500) X,Y,Z,U,V,W,0.0,0.0,TK,TE,0.0,0.0
+  50  CONTINUE
+ 100  FORMAT(9I5)
+ 400  FORMAT(//)
+ 500  FORMAT(3F8.4,3E12.4,2X,6E11.4)
+      END

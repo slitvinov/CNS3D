@@ -1,0 +1,317 @@
+CNS3D: tests of the recovered program
+
+Build
+
+  gfortran -std=legacy -fno-automatic -o cns3d cns3d.f
+
+-fno-automatic keeps local variables between calls, as the 1986 compiler did.
+
+Input
+
+  unit 5   control cards (Appendix A): NLIMT, IG (1 laminar, 2 k-epsilon), ISWP, ITT; eight relaxation
+           factors ALU ALV ALW ALP ALK ALE ALVIS ALC; RENL, DTT (DTT = 0 for steady flow)
+  unit 8   restart file: L,M,N and the blocked box L1,L2,M1,M2,N1,N2 as FORMAT(9I5), then for K, I: a
+           (//) record and M records (3F8.4,3E12.4,2X,6E11.4) of X Y Z U V W P TM DK DE and two unused
+  unit 7   the solution, in the same format; it can be used as the next restart file
+
+test/restart.f writes field.txt (header line, then X Y Z U V W DK DE per node) as the unit 8 file.
+
+The listing is set up for the report's case D. DIRCOS flags walls at J=1, J=M and K=N, and the box
+L1..L2, M1..M2, N1..N2 from the restart file. SYMOUT makes K=1 a symmetry plane and corrects V at the
+outlet I=L against the inlet mass flow (in case D the flow leaves along y). The main program zeroes the
+velocity on flagged nodes, so a moving wall must not be flagged.
+
+Other cases need these set up again, as Appendix A expects. test/case.py makes such a copy of cns3d.f;
+each edit must match exactly once, and the list of edits is printed:
+
+  dims=LO,MO,NO  array sizes        walls=COND  faces flagged as walls in DIRCOS
+  2d             K=N mirrors K=N-1 like K=1 (use N=4: with N=3 the pressure block correction is empty)
+  outlet=u       the outlet corrects U, and sums the outlet flow over the same cells as the inlet
+                 (the listing sums J=2..M-1, K=2..N-1, the inlet J=2..M, K=2..N)
+  outlet=none    I=L is a fixed boundary
+  bounc          BOUNC passes each wall's own link coefficient (see note 2)
+  wallvis        SOLVEQ DO 22 sets the viscosity on all nodes (see note 1)
+  pe10           link diffusion max(D, |C|/10) instead of max(D, |C|/2): central differencing up to
+                 cell Peclet 10, the report's second scheme as we read it (SOLVEQ)
+  erext=E        the convergence tolerance EREXT (1.E-3 in the listing)
+  outletsum      the outlet flow summed over the cells of the inlet sum (BC)
+  tmsource       the temperature source: the time term only (SOLVEQ, BC)
+  tmcross        the cross-derivative diffusion for TM on nonorthogonal grids (SOLVEQ)
+  wallk          near-wall K keeps its time and cross-derivative terms (WALLFN)
+
+Case D: laminar flow in a 90-deg bend square duct, Re = 790 (the listing as printed)
+
+  python3 bend.py && gfortran -std=legacy -o restart restart.f && ./restart
+  ./cns3d < bend.5 > out6 && python3 profiles.py fort.7
+
+Grid 20x17x9 as measured on Figure 16 (redraw/fig16.py, redraw/fig16_grid.json): inner radius 1.8d,
+outer 2.8d; stations 2.74, 1.84, 1.03, 0.39d before the bend, every 10 deg in it, and 0.19, 0.43,
+0.74, 1.09, 1.49, 1.93d after it; the lines along the flow clustered at both walls, the same in the
+legs and the bend; the z lines over the half duct clustered at both ends. Developed inlet profile.
+210 iterations. RMS difference in U/Uref from the report's own curves in Figure 19 (digitized,
+redraw/fig19*_present.csv) over the six profiles: 0.077 (0.144 with the earlier grid of uniform
+spacing and a 4.5d outlet); at theta = 60 deg, z/d = 0 it is 0.085 (was 0.27). From Humphrey's
+measurements: 0.25. The run also gives the report's Figures 17 and 18 (redraw/fig17.f, fig18.f).
+
+Case A: driven cavity, Re = 400
+
+  python3 case.py cns3d.f cavity.f dims=46,46,8 2d walls=J.EQ.1 outlet=none
+  python3 cavity.py 45 && ./restart && ./cavity < laminar.5 > out6 && python3 centre.py fort.7 45
+
+Lid J=M moving with u=1, uniform grid. Minimum centreline u (report Figure 7: about -0.25 at y=0.30,
+Burggraf -0.26):
+
+  grid      as printed        wallvis
+  21x21     -0.162 (y=0.25)   -0.192 (y=0.30)
+  41x41     -0.200 (y=0.30)   -0.258 (y=0.33)
+  45x45     -0.205 (y=0.32)   -0.266 (y=0.34)
+
+As printed, the vortex stays weak however fine the grid; with the viscosity set on the wall nodes it
+matches the report. The report's result was probably computed with a version that set it.
+
+The report's own grids, digitized from Figure 5 (31x31), with wallvis:
+
+  python3 cavity.py 31     (Figure 5a)   281 iterations, -0.236 (y=0.33)
+  python3 cavity5b.py      (Figure 5b)   584 iterations, -0.217 (y=0.33)
+
+RMS difference from the report's Figure 7 curve for the same grid: 0.014 and 0.017. These runs give
+the report's Figure 6 (redraw/fig6.f).
+
+Case B: laminar flow over a backward-facing step, 1:2 expansion
+
+  python3 case.py cns3d.f step.f dims=46,46,8 2d outlet=u
+  python3 step.py && ./restart, then for Re = 100, 200, 300, 400, 600, 800: RENL = Re/2 in the
+  unit 5 cards, ./step, python3 reattach.py fort.7, and fort.7 becomes fort.8 for the next Re
+
+Channel 2h x 30h, developed profile over the upper half at x=0, 45x41 grid stretched toward the step.
+About 400 iterations per Re, as the report says. Reattachment length Xr/h:
+
+  Re           100   200   300   400   600   800
+  as printed   3.35  5.05  6.29  7.12  7.29  7.20
+  wallvis      3.08  4.77  5.95  6.74  6.92  6.82
+  experiment   3.0         6.7   8.6   11.4  14.6   (Armaly et al., read from Figure 10)
+
+Like the report's hybrid-scheme curve, it follows the experiments to Re = 300 and then levels off,
+at 7.2 to 7.5 (on three grids) where the report's curve peaks near 8.3.
+
+Figure 11 (Re = 600, wallvis, the Re sequence 100, 200, 300, 400, 500, 600): Xr = 7.08h with the
+hybrid scheme, 9.33h with option pe10; the report's Figure 11 shows about 8.6h and 11h. Both show the
+bubble on the upper wall.
+
+The report's second scheme, central differencing with an artificial dissipation that "becomes
+effective only when the cell Peclet number exceeds 10", is not in the listing. Option pe10 is our
+reading of it: the diffusion of each link is max(D, |C|/10), central differencing up to cell Peclet
+10 and the least dissipation that keeps it there above. Xr/h with cns3d_fixed.f, the Re sequence
+200, 400, 600, 800, and the report's curves of Figure 10 (redraw/fig10_*.csv):
+
+  grid      scheme   200    400    600    800
+  45x41     hybrid   5.07   6.63   6.86   6.79
+  89x41     hybrid   5.25   7.12   7.65   7.55
+  89x81     hybrid   5.25   6.91   7.36   7.71
+  report    hybrid   4.99   8.02   8.44   (8.07 at 700)
+  45x41     pe10     5.22   7.62   9.32   no convergence
+  89x41     pe10     5.17   7.78   diverges
+  89x81     pe10     5.54   7.45   8.87   10.10
+  report    central  4.99   8.02   10.53  (11.70 at 700)
+  experiment         4.81   8.83   11.46  (13.06 at 700)
+
+The 89x81 grid is twice as fine in both directions, with the x spacing stretched from the step as in
+step.py. With pe10 the reattachment length keeps growing with Re, as in the report's central curve,
+while the hybrid scheme levels off near 7.5h, as in the report's hybrid curve; both stay 0.5 to 1.7h
+under the report's curves, which were computed on a grid the report does not give.
+
+Figures 11, 14 and 15 (redraw/), converged runs
+
+With EREXT = 1.E-3 a run continued from the previous Re stops after a few hundred iterations, before
+the steady state: at Re = 600 (45x41 grid, wallvis) Xr = 7.08h after 208 iterations, 7.37h converged
+(1.E-5 and 1.E-7 agree). The redrawn figures use converged runs, as printed (no wallvis), on the
+report's grid sizes, with the stretching that gives its reattachment lengths:
+
+  python3 case.py cns3d.f step.f dims=46,46,8 2d outlet=u erext=1.E-5          (and pe10 for 11b)
+  python3 step.py 45 45 0.5 && ./restart, RENL = 300, NLIMT = 20000             Re = 600 from the inlet profile
+  python3 reattach.py fort.7 45 45
+
+  The redrawn Figure 11 (each panel the best of 404 such runs against the deskewed scan):
+  (a) python3 case.py cns3d.f step.f dims=46,46,8 2d outlet=u erext=1.E-5
+      python3 step.py 45 45 0.5 uni 0 30, 30h channel: Xr = 8.33h
+  (b) python3 case.py cns3d.f step.f dims=46,46,8 2d outlet=u wallvis erext=1.E-5 pecap=20
+      python3 step.py 45 45 1.5 wall 1.0 26, 26h channel, y spacing reduced at both walls:
+      4338 iterations, Xr = 10.32h, vortex centre (4.99h, 0.60h) (scan about (5.2h, 0.57h)),
+      upper wall separated from 8.9h to 15.5h, stream function up to 1.0079 of the flow rate.
+      The report's (b) bubble on the upper wall is its 1.0024 contour (in (a) the 1.009 one).
+      The diffusion cap |C|/20 reads the report's "effective only when the cell Peclet number
+      exceeds 10" better than the |C|/100 used before (panel (b), as fitted: cap 10 77/73,
+      15 79/75, 20 79/74, 50 76/70, 100 74/68, none 74/68; a fourth-order dissipation switched
+      on above Peclet 10 matches as central differencing does); a 30h channel matches as well.
+      With the hybrid scheme (a) the scan's vortex centre lies at 0.55 Xr, the program's at
+      0.72 to 0.78 Xr on every grid tried (45x45, 89x61, 133x81), for hybrid factors 0.2 to 1.0,
+      Re 400 to 800, wallvis and runs stopped early; the central scheme gives the scan's ratio.
+      Re here is the report's, on the bulk inlet velocity and twice the inlet width: RENL = 300
+      with h = 1 is Re = 600, and Re 400 to 800 match the scan worse in both panels.
+
+  Grid towards the step face (432 runs, 45x45: x spacing at the step 0.05h to 0.53h, by
+  exponential, tanh and geometric stretching, channels 24h to 36h, three y spacings, each panel
+  scored against the scan with the drawing as fitted): the scan's contours reach into the corner
+  at the foot of the step, and a fine grid there draws them so, but in (a) it shortens the bubble,
+  Xr from 8.33h (step spacing 0.53h) to 8.06h (0.3h), 7.77h (0.1h) and 7.72h (0.05h), and matches
+  worse, 75 down to 56 percent for (a); in (b) Xr stays at 10.4h to 10.45h and the match within one
+  percent. The grids above fit best. Re sequence 100, 200, 300, 400, 600 as the report runs it,
+  with the program's EREXT = 1.E-3: 531, 396, 391, 401 and 262 iterations (the report: about 500
+  each), Xr = 7.73h in (a) and 10.40h in (b), both matching worse than the converged runs.
+
+  45x45, x stretching 0.5, Xr/h at Re 400 / 600:   hybrid 8.40 / 8.33,  pe10 8.91 / 10.88
+  report (Figure 10):                              hybrid 8.02 / 8.44,  central 8.02 / 10.53
+
+  python3 case.py cns3d.f tstep.f dims=46,46,8 2d outlet=u bounc hyb=0.792 nolip
+  python3 tstep.py 42 2.698 8.356 15.903 2.743 3 15.369 0.0297 3.741 && ./restart
+  ./tstep < tstep.5, with ALU ALV ALW ALK ALE = 0.862, ALP = 0.556 (EREXT = 1.E-3 as printed)
+  python3 reattach-t.py fort.7 42
+
+  tstep.py M b qw ql bu NU LD tu ls: 45x42 grid, NU columns upstream clustered towards the step
+  (bu), LD downstream stretched by b, the y spacing reduced towards the walls (qw) and on both
+  sides of the step corner (ql), the wall row on top of the step at y = 1, inlet k = 1.5 tu^2 and
+  length scale ls. The run stops at EREXT = 1.E-3 after 307 iterations (report: 300): Xr = 5.31h
+  (report 5.4h), k up to 0.063, and the u = 0 locus within 0.006h (RMS) of the report's Figure 13.
+  Run on to 40000 iterations (EREXT = 1.E-6) the same setting gives Xr = 5.33h; the GPU port, with
+  its red-black line order, stops at 5.29h.
+
+The setting was searched with a batched GPU port of the program (about 30000 runs scored against the
+scans, the best rerun here with the Fortran program). The score is the 2 px agreement both ways with
+Figures 14 and 15 (deskewed, the frame lines 3.75 px from the contours as calibrated on the uniform
+inlet flow, the downstream x scale 2/3 of the upstream one, fixed by the 5.4h label), less twice the
+distance from the report's Figure 13 curve. What the search shows:
+
+  y spacing: a uniform y grid matches far worse (0.59/0.47 against 0.74/0.75); the report's was not
+  uniform. On a non-uniform grid the wall distance in DIRCOS is taken to the interior neighbour,
+  not to the wall node (walldist corrects it; little effect here, Xr +0.03h).
+  Single changes on a fixed grid: C1 = 1.44 (the report's table; the program has 1.43) Xr +0.11h;
+  nolip, no wall function at the node behind the step corner, where the separating shear layer
+  starts, Xr +0.13h and the k peak from 0.069 to 0.056; genshear, production from the shear terms
+  only, Xr +0.16h; wallk and wallkt change nothing. Together the four overshoot (5.67h).
+  Searched together with the grid (each change a switch of the run), the best matches all use
+  nolip and none use C1 = 1.44, walldist or genshear: Xr = 5.31h. Held at Xr = 5.4h, the search
+  turns genshear on and matches a little worse (Figure 14 0.77 against 0.79, Figure 15 0.70
+  against 0.71). The hybrid factor goes to about 0.8 (0.5 printed).
+  Inlet profile (1/7 power, boundary layers) and the inlet turbulence change the streamlines little.
+  Chen and Kim (NASA CR-179204, 1987, the same author, the elliptic solver of this report with
+  second-order upwind differencing, 51x41 grid, grid independent within 1 percent) give 5.2h for
+  the standard k-epsilon model on this step.
+
+Case C: turbulent flow over a backward-facing step, 2:3 expansion (Kim et al.)
+
+  python3 case.py cns3d.f tstep.f dims=46,46,8 2d outlet=u bounc
+  python3 tstep.py && ./restart && ./tstep < tstep.5 > out6 && python3 reattach-t.py fort.7
+
+Inlet channel 2h over a step block 4h long (the blocked box of the restart file), 30h downstream,
+uniform inlet, Re_h = 45000, 45x43 grid. The report gives Xr = 5.4h; the experiment about 7h.
+
+  as printed (AN for every wall)   no convergence in 3000 iterations, Xr = 11.8h
+  bounc                            converges in 706 iterations, Xr = 4.3h
+
+With bounc, Xr is 4.2 to 4.35h for inlet turbulence 1 to 4 percent, other inlet length scales, and
+Re_h from 20000 to 100000, but 3.2 to 5.0h when the x spacing near the step changes, so the report's
+5.4h cannot be checked closely without its grid.
+
+Laminar square duct
+
+The field converges and, away from the walls, satisfies the discrete momentum equation to 0.05. With
+wallvis, the developed profile gives centre/mean velocity 2.107 against 2.108 exact, and the pressure
+gradient is within 0.5 percent.
+
+Transient (smoke tests)
+
+ITT time steps of DTT, each iterated to convergence or NLIMT; every step appends the field and ITO,
+TIMT to unit 7. The report shows no transient results.
+
+  Restarting the steady case D with DTT = 0.1, 1 or 10 (3 steps of 200 iterations): as printed the
+  interior velocity moves by 1.1 to 1.5 at every DTT; with unsteady it stays within 0.004 to 0.017
+  of the steady state.
+  Cavity (21x21, Re 400) from rest, DTT = 0.5, 60 steps: with unsteady the minimum centreline u goes
+  -0.034, -0.119, -0.158, -0.163 at t = 0.5, 10, 20, 30 and ends within 0.004 of the steady solution
+  (-0.165); as printed it stays at -0.018 throughout.
+
+  python3 case.py cns3d.f cavity.f dims=46,46,8 2d walls=J.EQ.1 outlet=none unsteady
+
+Temperature (smoke tests)
+
+INSOT is set .FALSE. in the main program; the heat option sets it. As printed (note 5):
+
+  Thermal entry between parallel plates, Pr = 1, walls at 0, inlet at 1: Nu = 6.87 (Re 20, cell Peclet
+  number 27, upwind) and 2.36 (Re 5, cell Peclet 1.7, central) against 7.54, while the velocity profile
+  of the same run is right (centre/mean 1.504).
+  Case D with TM = 1 everywhere, walls included: TM spreads to -1.1 .. 3.0 instead of staying 1.
+
+  With cns3d_fixed.f (option tmsource):
+
+  python3 case.py cns3d_fixed.f h.f dims=161,21,8 2d outlet=u heat && gfortran -std=legacy -fno-automatic -o h h.f
+  python3 plates.py 20 && ./h < in5 > out6 && python3 nusselt.py fort.7 20
+
+  Plates h apart, 8h long, 161x21, developed inlet profile at T = 1, walls at 0. Nu from the wall
+  gradient, x = 2h to 6h: 7.54 at Re = 20 (exact 7.54); 8.08 at Re = 5, where conduction along the
+  channel matters (8.12 in that limit). Case D with TM = 1 everywhere stays 1.00000 (without the
+  mass imbalance left out of SP it falls to 0.75).
+
+  Conduction on a nonorthogonal grid (option tmcross): no flow, T = x on the boundary of the unit
+  square, a 31x31 grid warped by x = q + a sin(pi q) sin(2 pi r), y = r + a sin(2 pi q) sin(pi r);
+  the exact solution is T = x. Run to EREXT = 1.E-9:
+
+  python3 case.py cns3d_fixed.f c.f dims=46,46,8 2d walls=J.EQ.1 outlet=none heat
+  sed 's/EREXT=1.E-3/EREXT=1.E-9/' c.f > c9.f && gfortran -std=legacy -fno-automatic -o c c9.f
+  python3 conduct.py warp0.1 && ./c < in5 > out6 && python3 conderr.py fort.7
+
+             without tmcross   with tmcross
+  a = 0.05   rms 0.0101        0.00033
+  a = 0.1    rms 0.0219        0.00063
+
+  On the Figure 5b grid (python3 conduct.py ../redraw/fig5b_nodes.csv) the difference is below the
+  four decimals of the output.
+
+Notes on the program as printed
+
+These are in the listing (checked on the scan) and are kept in cns3d.f.
+
+1. SOLVEQ, DO 22: F1 = VISE/SIGF is set on interior nodes only, so the viscosity on a wall face is half
+   the fluid's, and the laminar wall shear (including that of a moving lid) is halved. With wall
+   functions (IG = 2) BOUNC replaces this link. Case A suggests the report used a version without this.
+
+2. BOUNC passes AN(I,J,K) to WALLFN for all six wall directions, so for south, east, west, top and
+   bottom walls the north link is changed instead of the wall link. Case C does not converge and gives
+   twice the report's reattachment length; with each wall's own link it converges near the report.
+
+3. The outlet sums the flow over J=2..M-1, K=2..N-1 and the inlet over J=2..M, K=2..N. In case D the
+   missing cells are at walls and carry little flow.
+
+4. SOLVEQ: ANAB includes APO(I,J,K), and SP includes -APO*TJO through SPK = -CPO-APO, so the diagonal
+   carries APO + APO*TJO while the source carries APO*TJO*FO. Time steps then pull the velocity toward
+   zero and a steady state is not kept. Without the APO in ANAB (option unsteady) the transient
+   tests above behave.
+
+5. The temperature equation is a stub: the TM-SOURCE branch is empty (4 CONTINUE, GO TO 60), so TM is
+   solved with the source left by the W equation; it also uses ISWW, ALW and ERRW. Completed in
+   cns3d_fixed.f (option tmsource), which is new code.
+
+6. WALLFN, K: near a wall SU is set to (CPO+APO)*K plus the wall production, dropping the
+   cross-derivative terms of K and taking the time term at the new K, so the time derivative cancels
+   in wall cells. Corrected in cns3d_fixed.f (option wallk); the steady case C is unchanged (Xr =
+   4.32h). Restarting case C from its steady state with DTT = 0.1 for 3 steps changes k by at most
+   0.00045 with the correction and 0.00073 without (k up to 0.065).
+
+7. LINERX, block correction: the correction of each I plane is copied from J = JS+1 and K = KS+1
+   on, so the first row and plane keep the value of the corner only. It affects only the start of
+   the line iterations. The work arrays A, B, C, D are dimensioned 20 while the P equation runs I
+   to L; the dims option of case.py enlarges them.
+
+cns3d_fixed.f (CHANGES, section 5); temperature off, as in the listing
+
+  case A, 21x21 / 31x31 / 45x45 / Figure 5b   -0.195 / -0.236 / -0.266 / -0.217   (as wallvis)
+  case B, Xr/h at Re 100 ... 800               3.08 4.77 5.95 6.74 6.92 6.82      (as wallvis)
+  case C                                       755 iterations, Xr = 4.32h          (bounc: 4.30h)
+  case D                                       219 iterations; RMS from the report's Figure 19
+                                               curves 0.12 (as printed 0.077), from Humphrey 0.26 (0.25)
+
+Case D moves away from the report's curves with the wall viscosity set (wallvis alone: 0.114; the
+outlet sum alone: 0.086; bounc and unsteady change nothing in this steady laminar case). With case A,
+this suggests the report's bend was computed with the program as printed, which is set up for it,
+and the cavity with a version that set the wall viscosity.
+
+Not tested: transient accuracy (only consistency with the steady state was checked).

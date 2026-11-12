@@ -1,0 +1,143 @@
+      PROGRAM FIG8
+      REAL X(3000),Y(3000),XB(3),YB(3)
+      INTEGER KIND(3),IP(8,3),NP(3)
+      CHARACTER*40 LAB(3)
+      CHARACTER*5 XL(5),YL(5)
+      DATA KIND/1,1,1/, NP/0,2,4/
+      DATA IP/8*0, 27,8,6*0, 35,8,14,8,4*0/
+      DATA LAB/'u','v','p'/
+      DATA XL/'0','100','200','300','400'/
+      DATA YL/'-4','-3','-2','-1','0'/
+      DATA XB/136.,129.,123./, YB/415.5,557.,726./
+      U=0.84667
+      OPEN(2,FILE='fig8_style.dat')
+      READ(2,*) HLAB,CWID,DLAB,HLEG,XS,SLEN,TOFF,Y1,GENT,SDY,TDY,WLIN,
+     1  HNAM,CWT,XNM,YNM,HFR,CFR,DNUM,DDEN,HPAR,DPAR,WBAR,XLOG,FBAS,
+     2  FEXP,XOR,YOR,DLX,WPAR
+      CLOSE(2)
+      CALL METAFL('PDF')
+      CALL SETFIL('fig8_dislin.pdf')
+      CALL FILMOD('DELETE')
+      CALL PAGE(NINT(1676*U),NINT(1280*U))
+      CALL DISINI
+      CALL ERRMOD('ALL','OFF')
+      CALL PSFONT('Helvetica-Bold')
+      CALL CHAWTH(CWID)
+      CALL AXSPOS(NINT(431*U),NINT(1142*U))
+      CALL AXSLEN(NINT(1196*U),NINT(1103*U))
+      CALL TICKS(1,'XY')
+      CALL TICLEN(NINT(14*U),NINT(7*U))
+      CALL TICPOS('REVERS','XY')
+      CALL SETGRF('NAME','NAME','TICKS','TICKS')
+      CALL LINWID(NINT(WLIN*U))
+      CALL HEIGHT(NINT(HLAB*U))
+      CALL LABDIS(NINT(DLX*U),'X')
+      CALL LABDIS(NINT(DLAB*U),'Y')
+      CALL LABELS('MYLAB','XY')
+      CALL LABJUS('RIGHT','Y')
+      DO 5 I=1,5
+      CALL MYLAB(XL(I),I,'X')
+   5  CALL MYLAB(YL(I),I,'Y')
+      CALL NAME(' ','XY')
+      CALL GRAF(0.,400.,0.,100.,-4.,0.,-4.,1.)
+      CALL TXTJUS('CENT')
+      CALL TXTJUS('MIDDLE')
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HNAM*U))
+      CALL MESSAG('ITERATION',NINT(XNM*U),NINT(YNM*U))
+      DO 8 K=1,3
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('MIDDLE')
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HNAM*U))
+      CALL MESSAG('LOG',NINT(XLOG*U),NINT(YB(K)*U))
+      CALL FRAC(K,XB(K),YB(K),HFR,CFR,DNUM,DDEN,HPAR,DPAR,WBAR,FBAS,
+     1          FEXP,WPAR,U)
+   8  CONTINUE
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HNAM*U))
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('MIDDLE')
+      CALL MESSAG('OR',NINT(XOR*U),NINT(YOR*U))
+      CALL TXTJUS('CENT')
+      CALL HEIGHT(NINT(HFR*U))
+      CALL MESSAG(',',NINT(325.5*U),NINT(452*U))
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('TOP')
+      CALL CHAWTH(CWID)
+      CALL RDXY('fig8_u.dat',X,Y,N)
+      CALL PATT(IP(1,1),NP(1),U)
+      CALL CURVE(X,Y,N)
+      CALL RDXY('fig8_v.dat',X,Y,N)
+      CALL PATT(IP(1,2),NP(2),U)
+      CALL CURVE(X,Y,N)
+      CALL RDXY('fig8_p.dat',X,Y,N)
+      CALL PATT(IP(1,3),NP(3),U)
+      CALL CURVE(X,Y,N)
+      CALL SOLID
+      CALL HEIGHT(NINT(HLEG*U))
+      CALL MYLEG(LAB,3,KIND,IP,NP,XS,SLEN,TOFF,Y1,0.,GENT,SDY,TDY,
+     1           0.,0.,0.,0.,0.,WLIN,U)
+      CALL ENDGRF
+      CALL DISFIN
+      END
+      SUBROUTINE FRAC(K,XB,YB,HFR,CFR,DNUM,DDEN,HPAR,DPAR,WBAR,FBAS,
+     1                FEXP,WPAR,U)
+      CHARACTER*12 NUM(3),DEN(3)
+      DATA NUM/'U]max','V]max','P]max'/
+      DATA DEN/'Uref','Uref','U[2$ref'/
+      XC=XB+DPAR+WBAR/2
+      CALL LINWID(NINT(5*U))
+      CALL PAREN(XB,YB,HPAR,WPAR,1.,U)
+      CALL PAREN(XB+2*DPAR+WBAR,YB,HPAR,WPAR,-1.,U)
+      CALL LINE(NINT((XB+DPAR)*U),NINT(YB*U),NINT((XB+DPAR+WBAR)*U),
+     1          NINT(YB*U))
+      CALL CHAWTH(CFR)
+      CALL HEIGHT(NINT(HFR*U))
+      CALL MIXALF
+      CALL SETBAS(FBAS)
+      CALL SETEXP(FEXP)
+      CALL PSFONT('Symbol')
+      ND=NLMESS('D')
+      CALL PSFONT('Helvetica-Bold')
+      NR=NLMESS(NUM(K)(1:LEN_TRIM(NUM(K))))
+      NX0=NINT(XC*U)-(ND+NR)/2
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('BOTTOM')
+      CALL PSFONT('Symbol')
+      CALL MESSAG('D',NX0,NINT((YB-DNUM)*U))
+      CALL PSFONT('Helvetica-Bold')
+      CALL MESSAG(NUM(K)(1:LEN_TRIM(NUM(K))),NX0+ND,NINT((YB-DNUM)*U))
+      CALL TXTJUS('TOP')
+      IF(K.LT.3) THEN
+        NR=NLMESS(DEN(K)(1:LEN_TRIM(DEN(K))))
+        CALL MESSAG(DEN(K)(1:LEN_TRIM(DEN(K))),NINT(XC*U)-NR/2,
+     1              NINT((YB+DDEN)*U))
+      ELSE
+        CALL PSFONT('Symbol')
+        NRH=NLMESS('r ')
+        CALL PSFONT('Helvetica-Bold')
+        NR=NLMESS('U[2$ref')
+        NX0=NINT(XC*U)-(NRH+NR)/2
+        CALL PSFONT('Symbol')
+        CALL MESSAG('r',NX0,NINT((YB+DDEN)*U))
+        CALL PSFONT('Helvetica-Bold')
+        CALL MESSAG('U[2$ref',NX0+NRH,NINT((YB+DDEN)*U))
+      ENDIF
+      CALL RESET('MIXALF')
+      RETURN
+      END
+      SUBROUTINE PAREN(XL,YC,H,W,S,U)
+      REAL PX(41),PY(41)
+      R=(H*H/4+W*W)/(2*W)
+      A=ASIN(H/(2*R))
+      XC=XL+S*R
+      DO 10 I=1,41
+      T=-A+2*A*(I-1)/40.
+      PX(I)=(XC-S*R*COS(T))*U
+  10  PY(I)=(YC+R*SIN(T))*U
+      CALL STRTPT(PX(1),PY(1))
+      DO 20 I=2,41
+  20  CALL CONNPT(PX(I),PY(I))
+      RETURN
+      END

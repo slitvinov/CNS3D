@@ -1,0 +1,18 @@
+      SUBROUTINE CPANEL(FN,NLEV,ZLEV,X0,Y0,SX,SY,XA,XE,YA,YE,U)
+      CHARACTER*(*) FN
+      REAL ZLEV(*),X(100),Y(100),Z(10000)
+      OPEN(1,FILE=FN)
+      READ(1,*) NX,NY
+      READ(1,*) (X(I),I=1,NX)
+      READ(1,*) (Y(J),J=1,NY)
+      READ(1,*) (Z(I),I=1,NX*NY)
+      CLOSE(1)
+      CALL AXSPOS(NINT(X0*U),NINT(Y0*U))
+      CALL AXSLEN(NINT((XE-XA)*SX*U),NINT((YE-YA)*SY*U))
+      CALL NOGRAF
+      CALL GRAF(XA,XE,XA,1.,YA,YE,YA,1.)
+      DO 10 L=1,NLEV
+  10  CALL CONTUR(X,NX,Y,NY,Z,ZLEV(L))
+      CALL ENDGRF
+      RETURN
+      END

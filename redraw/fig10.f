@@ -1,0 +1,140 @@
+      PROGRAM FIG10
+      REAL X(1000),Y(1000)
+      INTEGER IPAT(6,5),NPAT(5)
+      CHARACTER*12 FILE(5)
+      CHARACTER*50 LAB(6)
+
+      DATA FILE/'central','hybrid','INS3D','KimMoin','TEACH'/
+      DATA NPAT/0,2,6,2,4/
+      DATA IPAT/0,0,0,0,0,0, 29,6,0,0,0,0, 56,7,12,7,11,6,
+     1          13,5,0,0,0,0, 65,6,14,6,0,0/
+      DATA LAB/'PRESENT CODE WITH CENTRAL|DIFFERENCING SCHEME',
+     1 'PRESENT CODE WITH HYBRID|SCHEME','INS3D [18]',
+     2 'KIM & MOIN [18]','TEACH CODE [16]','EXP. [16]'/
+      U=0.84667
+      OPEN(2,FILE='fig10_style.dat')
+      READ(2,*) HLAB,HNAM,HLEG,CWID,DLAB,DNAM,XS,SLEN,TOFF,Y1,GLIN,
+     1          GENT,SDY,TDY,HSYM,DNAMY,FBAS,FEXP,HNAMY,R1,R2,R3,CWT,
+     2          SXO,SYO,CWTY
+      CLOSE(2)
+      CALL METAFL('PDF')
+      CALL SETFIL('fig10_dislin.pdf')
+      CALL FILMOD('DELETE')
+      CALL PAGE(NINT(1129*U),NINT(1085*U))
+      CALL DISINI
+      CALL ERRMOD('ALL','OFF')
+      CALL PSFONT('Helvetica-Bold')
+      CALL CHAWTH(CWID)
+      CALL AXSPOS(NINT(172*U),NINT(963*U))
+      CALL AXSLEN(NINT(915*U),NINT(922*U))
+      CALL TICKS(1,'XY')
+      CALL TICLEN(NINT(14*U),NINT(7*U))
+      CALL TICPOS('REVERS','XY')
+      CALL SETGRF('NAME','NAME','TICKS','TICKS')
+      CALL LINWID(NINT(3.5*U))
+      CALL HEIGHT(NINT(HLAB*U))
+      CALL HNAME(NINT(HNAM*U))
+      CALL LABDIS(NINT(DLAB*U),'XY')
+      CALL NAMDIS(NINT(DNAM*U),'X')
+      CALL NAMDIS(NINT(DNAMY*U),'Y')
+      CALL SETBAS(FBAS)
+      CALL SETEXP(FEXP)
+      CALL LABDIG(-1,'XY')
+      CALL MIXALF
+      CALL NAME(' ','X')
+      CALL NAME(' ','Y')
+      CALL GRAF(0.,800.,0.,200.,0.,16.,0.,2.)
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HNAM*U))
+      CALL TXTJUS('CENT')
+      CALL TXTJUS('MIDDLE')
+      CALL MESSAG('REYNOLDS NUMBER',NINT(629.5*U),NINT((963+DNAM)*U))
+      CALL HEIGHT(NINT(HNAMY*U))
+      CALL CHAWTH(CWTY)
+      CALL ANGLE(90)
+      CALL TXTJUS('CENT')
+      CALL TXTJUS('MIDDLE')
+      CALL MESSAG('X]r$/h',NINT((172-DNAMY)*U),NINT(502*U))
+      CALL ANGLE(0)
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('TOP')
+      CALL CHAWTH(CWID)
+      CALL RESET('MIXALF')
+      DO 20 K=1,5
+      OPEN(1,FILE='fig10_'//FILE(K)(1:LEN_TRIM(FILE(K)))//'.dat')
+      READ(1,*) N
+      DO 10 I=1,N
+  10  READ(1,*) X(I),Y(I)
+      CLOSE(1)
+      CALL STYLE(K,IPAT,NPAT,U)
+      CALL CURVE(X,Y,N)
+  20  CONTINUE
+      CALL SOLID
+      OPEN(1,FILE='fig10_experiment.dat')
+      READ(1,*) N
+      DO 30 I=1,N
+  30  READ(1,*) X(I),Y(I)
+      CLOSE(1)
+      DO 35 I=1,N
+  35  CALL MARK2(NXPOSN(X(I)),NYPOSN(Y(I)),R1,R2,R3,U)
+      CALL HEIGHT(NINT(HLEG*U))
+      CALL MYLEG(LAB,6,IPAT,NPAT,XS,SLEN,TOFF,Y1,GLIN,GENT,SDY,TDY,
+     1           HSYM,R1,R2,R3,SXO,SYO,U)
+      CALL ENDGRF
+      CALL DISFIN
+      END
+      SUBROUTINE STYLE(K,IPAT,NPAT,U)
+      INTEGER IPAT(6,5),NPAT(5),IP(6)
+      IF(NPAT(K).EQ.0) THEN
+        CALL SOLID
+        RETURN
+      ENDIF
+      DO 10 I=1,NPAT(K)
+  10  IP(I)=NINT(IPAT(I,K)*U)
+      CALL MYLINE(IP,NPAT(K))
+      RETURN
+      END
+      SUBROUTINE MYLEG(LAB,NLAB,IPAT,NPAT,XS,SLEN,TOFF,Y1,GLIN,GENT,
+     1                 SDY,TDY,HSYM,R1,R2,R3,SXO,SYO,U)
+      CHARACTER*(*) LAB(NLAB)
+      INTEGER IPAT(6,5),NPAT(5)
+      NL=0
+      DO 20 K=1,NLAB
+      Y=Y1+NL*GLIN+(K-1)*GENT
+      IF(K.LE.5) THEN
+        CALL STYLE(K,IPAT,NPAT,U)
+        CALL LINE(NINT(XS*U),NINT((Y+SDY)*U),NINT((XS+SLEN)*U),
+     1            NINT((Y+SDY)*U))
+        CALL SOLID
+      ELSE
+        CALL MARK2(NINT((XS+SLEN/2+SXO)*U),NINT((Y+SDY+SYO)*U),
+     1             R1,R2,R3,U)
+      ENDIF
+      I0=1
+      DO 10 I=1,LEN_TRIM(LAB(K))+1
+      IF(I.GT.LEN_TRIM(LAB(K)).OR.LAB(K)(I:I).EQ.'|') THEN
+        CALL MESSAG(LAB(K)(I0:I-1),NINT((XS+SLEN+TOFF)*U),
+     1              NINT((Y+TDY)*U))
+        IF(I.LE.LEN_TRIM(LAB(K))) THEN
+          Y=Y+GLIN
+          NL=NL+1
+        ENDIF
+        I0=I+1
+      ENDIF
+  10  CONTINUE
+  20  CONTINUE
+      RETURN
+      END
+      SUBROUTINE MARK2(NX,NY,R1,R2,R3,U)
+      CALL LINWID(1)
+      CALL CIRCSP(1)
+      CALL SHDPAT(16)
+      CALL CIRCLE(NX,NY,NINT(R1*U))
+      CALL COLOR('BACK')
+      CALL CIRCLE(NX,NY,NINT(R2*U))
+      CALL COLOR('FORE')
+      CALL CIRCLE(NX,NY,NINT(R3*U))
+      CALL SHDPAT(0)
+      CALL LINWID(NINT(3.5*U))
+      RETURN
+      END

@@ -1,0 +1,249 @@
+CNS3D: recovery notes
+
+cns3d.f is the program as printed in Appendix C of NASA CR-178818 (Chen 1986), the FORTRAN VII D
+listing in code.pdf, one card per line. It was read from the line-printer character grid with a glyph
+classifier trained on the votes of seven OCR models and checked with the original compiler, FORTRAN VII D
+R05-01.00 on an emulated Perkin-Elmer OS/32, by comparing every statement's location code and every
+routine's table space with the listing.
+
+1. Cards read by inspection of the scan
+
+Where the print is too worn for the classifier, or where checking names or running the program showed a
+misreading, the card was read again from the scan; the reason is given.
+
+  CNS3D line 4 (code.pdf page 1):  C*****[ CURVILINEAR N-S CODE FOR 3-D INCOMPRESSIBLE FLOWS ]***********
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  CNS3D line 33 (code.pdf page 1):  1/UNSTDY/UO(21,18,10),VO(21,18,10),WO(21,18,10),DKO(21,18,10),
+      COMMON /UNSTDY/ holds the previous time level: UO, VO, WO, DKO (O and 0 print alike; letter O used throughout)
+  CNS3D line 34 (code.pdf page 1):  2   DEO(21,18,10),DENO(21,18,10),TMO(21,18,10)
+      COMMON /UNSTDY/ second card: DEO, DENO, TMO
+  CNS3D line 48 (code.pdf page 1):  C
+      blank comment card; the digits are specks
+  CNS3D line 55 (code.pdf page 1):  READ(5,100) NLIMT,IG,ISWP,ITT
+      the D of READ is worn to C
+  CNS3D line 57 (code.pdf page 1):  READ(5,200) RENL,DTT
+      the card ends after DTT; the digits are specks
+  CNS3D line 75 (code.pdf page 2):  PI=3.141592654
+      PI as printed
+  CNS3D line 76 (code.pdf page 2):  HINUM=1.E30
+      HINUM=1.E30 as printed (worn U); the counterpart of SMNUM=1.E-30
+  CNS3D line 110 (code.pdf page 2):  2 VISETM,DENTM
+      DENTM as printed: the last two values of each restart record are read into throwaway scalars; DENIN is the inlet density
+  CNS3D line 112 (code.pdf page 2):  VO(I,J,K)=V(I,J,K)
+      V(I,J,K) as printed
+  CNS3D line 113 (code.pdf page 2):  WO(I,J,K)=W(I,J,K)
+      WO(I,J,K)=W(I,J,K) as printed
+  CNS3D line 115 (code.pdf page 3):  DKO(I,J,K)=DK(I,J,K)
+      DKO saves DK; CK is the wall-function constant
+  CNS3D line 117 (code.pdf page 3):  DENO(I,J,K)=DEN(I,J,K)
+      DENO saves the density, like UO, VO, WO
+  CNS3D line 162 (code.pdf page 3):  IF(INSOU) CALL SOLVEQ(1,ISWU,ALU,SIGU,ERRU,U,UO)
+      UO, the previous time level of U, as VO and WO in the next calls; O prints open like C
+  CNS3D line 166 (code.pdf page 3):  IF(INSOK) CALL SOLVEQ(5,ISWK,ALK,SIGK,ERRK,DK,DKO)
+      DKO, the previous time level of DK; D and O print like C and 0
+  CNS3D line 173 (code.pdf page 4):  IF(ITER .GE. 20 .AND. ERRMAX .GT. 1.E03) GO TO 99
+      ERRMAX as printed
+  CNS3D line 193 (code.pdf page 4):  IF(ITO .GE. ITT .OR. DTT .EQ. 0.0) GO TO 999
+      constant 0.0 and label 999 as printed; counter ITO
+  CNS3D line 201 (code.pdf page 4):  500  FORMAT(3F8.4,3E12.4,2X,6E11.4)
+      3F8.4 as printed; F3.4 cannot hold four decimals
+  DIRCOS line 287 (code.pdf page 10):  IITY(III)=6
+      BOTTOM wall type 6 as printed (TOP is 5, BOUNC branch 6 is BOTTOM); 6 read as 4
+  TRANF line 49 (code.pdf page 11):  R3=(Z(I,J,K)+Z(I-1,J,K)+Z(I,J-1,K)+Z(I-1,J-1,K)-Z(I,J,K-1)-
+      a speck made the line end in a double minus
+  TRANF line 59 (code.pdf page 12):  DU(I,J,K)=PTR*(Q1*R2-Q2*R1)
+      DU as printed
+  TRANF line 100 (code.pdf page 12):  DU(I,J,K)=0.0
+      0.0 as printed
+  TRANF line 148 (code.pdf page 13):  SYW=(SY(I,J,K)+SY(I-1,J,K))*0.5
+      0.5 as in the 53 neighbouring cards; a stroke through the 5 read as 0.E1
+  SOLVEQ line 32 (code.pdf page 17):  PI=3.141592654
+      PI as printed
+  SOLVEQ line 33 (code.pdf page 17):  C-----PRESSURE CORRECTION SOLVER STARTS FROM 10
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  SOLVEQ line 123 (code.pdf page 19):  4         DDNT*F(I,J+1,K+1)+DDNB*F(I,J+1,K-1)+
+      DDNB, the north-bottom coefficient computed above (B prints like 8 and E)
+  SOLVEQ line 129 (code.pdf page 19):  4         DDNT*V(I,J+1,K+1)+DDNB*V(I,J+1,K-1)+
+      DDNB, the north-bottom coefficient computed above (B prints like 8 and E)
+  SOLVEQ line 135 (code.pdf page 19):  4         DDNT*W(I,J+1,K+1)+DDNB*W(I,J+1,K-1)+
+      DDNB, the north-bottom coefficient computed above (B prints like 8 and E)
+  SOLVEQ line 141 (code.pdf page 19):  4         DDNT*DK(I,J+1,K+1)+DDNB*DK(I,J+1,K-1)+
+      DDNB, the north-bottom coefficient computed above (B prints like 8 and E)
+  SOLVEQ line 154 (code.pdf page 19):  UX=UCXI*CX(I,J,K)+UEDA*EX(I,J,K)+USCI*SX(I,J,K)
+      +UEDA as printed (the plus has a faint vertical stroke); UCXI as in the lines below
+  SOLVEQ line 188 (code.pdf page 20):  UCW=U(I,J,K)-U(I-1,J,K)
+      U with a worn left stroke prints like J; J is a loop index and takes no subscripts
+  SOLVEQ line 363 (code.pdf page 23):  DW(I,J,K)=DW(I,J,K)+SOC1+SOC2+SOC3
+      DW as printed; the worn D was read as Q
+  SOLVEQ line 368 (code.pdf page 23):  C-----V-SOURCE
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  SOLVEQ line 376 (code.pdf page 23):  C-----W-SOURCE
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  SOLVEQ line 387 (code.pdf page 23):  C-----K-SOURCE
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  SOLVEQ line 399 (code.pdf page 23):  C-----E-SOURCE
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  SOLVEQ line 407 (code.pdf page 24):  TMDK=DK(I,J,K)+SMNUM
+      TMDK as on the next card and in the k-source block; D prints like O
+  SOLVEQ line 455 (code.pdf page 24):  IF(IE .EQ. 1) DU(I,J,K)=TJO(I,J,K)*PDUV/(P1-ANAB)
+      DU and PDUV as printed
+  SOLVEQ line 541 (code.pdf page 26):  UB=0.25*(U(I,J,K)+U(I,J-1,K)+U(I,J,K-1)+U(I,J-1,K-1))
+      bottom-face average over K-1 is UB, as DENB above it
+  SOLVEQ line 576 (code.pdf page 27):  DENB=DEN(I,J,K-1)
+      bottom-face density DENB; B prints like S
+  SOLVEQ line 581 (code.pdf page 27):  UT=U(I,J,K)
+      top-face UT=U(I,J,K); worn U prints like J and L
+  SOLVEQ line 582 (code.pdf page 27):  UB=U(I,J,K-1)
+      bottom-face UB; B prints like E
+  SOLVEQ line 604 (code.pdf page 27):  SYQ=0.5*(SY(I,J,K)+SY(I,J,K-1))
+      trailing * is a speck after the closing parenthesis
+  SOLVEQ line 613 (code.pdf page 27):  CB=DENB*(UB*SXQ+VB*SYQ+WB*SZQ)
+      DENB as in the PX and PY blocks; B prints like 8 and S
+  LINERX line 14 (code.pdf page 30):  BB(I,J,K)=AE(I,J,K)*F(I+1,J,K)+AN(I,J,K)*F(I,J+1,K)+
+      AN(I,J,K): pass 7 matched the listing's location codes with J; 1 for J is a same-size slip only the code size of a constant subscript revealed
+  LINERX line 27 (code.pdf page 30):  TERM1=D(K)-B(K)*A(K-1)+1.E-30
+      D(K), the diagonal AP set on the line above and otherwise unused; C(K) holds the right-hand side. D prints like C
+  BOUNC line 23 (code.pdf page 32):  C-----EVALUATE WALL BOUNDARY CONDITIONS USING WALL FUNCTIONS
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  BOUNC line 42 (code.pdf page 32):  GO TO 150
+      the mark before GO TO is a speck
+  WALLFN line 13 (code.pdf page 35):  C-----WALL FUNCTIONS USING LOGARITHMIC WALL LAW
+      comment as printed; worn letters (U, O, B, G) read as L, C, S, C
+  WALLFN line 59 (code.pdf page 36):  DDU=UO-U1
+      DDU=UO-U1 as printed
+  WALLFN line 63 (code.pdf page 36):  DDU=U2-U1
+      DDU=U2-U1 as printed
+  WALLFN line 66 (code.pdf page 36):  P2=DDU**2+DDV**2+DDW**2
+      P2 sums DDU, DDV, DDW as printed
+  SYMOUT line 16 (code.pdf page 37):  1/UNSTDY/UO(21,18,10),VO(21,18,10),WO(21,18,10),DKO(21,18,10),
+      COMMON /UNSTDY/ holds the previous time level: UO, VO, WO, DKO (O and 0 print alike; letter O used throughout)
+  SYMOUT line 17 (code.pdf page 37):  2   DEO(21,18,10),DENO(21,18,10),TMO(21,18,10)
+      COMMON /UNSTDY/ second card: DEO, DENO, TMO
+  SYMOUT line 84 (code.pdf page 38):  UO(I,J,K)=U(I,J,K)
+      UO saves U at the previous time level; UC is the scalar cell-centre velocity
+
+2. Names read consistently
+
+In this print C, O, 0 and D, and B, E, 2 and 3, and U, J and L are often indistinguishable. Names are
+read the same way wherever they occur, from how they are declared and used:
+
+  ITC -> ITO in the main program: the time-step counter prints as ITO in the main program; C, O and 0 are hard to tell apart
+  REAC -> READ in the main program: READ statements print as REAC: the right side of D is worn away
+  PF -> PP in COMMON statements: COMMON /VAR/ declares PP (P prints like F); SOLVEQ has its own scalar PF
+  CU -> DU everywhere: COMMON /PCCR/ declares DU, used in TRANF and SOLVEQ; D prints like C
+  W0 -> WO everywhere: the previous-time-level array is WO, like UO and VO
+  DEN0 -> DENO everywhere: the previous-time-level density is DENO, like UO and TMO
+  UT -> U1 in WALLFN: WALLFN arguments and locals as printed: U1
+  VT -> V1 in WALLFN: WALLFN arguments and locals as printed: V1
+  WT -> W1 in WALLFN: WALLFN arguments and locals as printed: W1
+  UC -> UO in WALLFN: WALLFN arguments and locals as printed: UO
+  UZ -> U2 in WALLFN: WALLFN arguments and locals as printed: U2
+  VZ -> V2 in WALLFN: WALLFN arguments and locals as printed: V2
+  WZ -> W2 in WALLFN: WALLFN arguments and locals as printed: W2
+  TALN1 -> TAUN1 in WALLFN: WALLFN arguments and locals as printed: TAUN1
+  DOU -> DDU in WALLFN: WALLFN arguments and locals as printed: DDU
+  TALN -> TAUN everywhere: wall shear stress TAUN (Appendix B); worn U prints like L
+  DK0 -> DKO everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  DE0 -> DEO everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  TM0 -> TMO everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  U0 -> UO everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  V0 -> VO everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  0K -> DK everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  0E -> DE everywhere: previous-time-level arrays end in letter O (UO VO WO DKO DEO DENO TMO); D prints like 0
+  JEC -> JBC in WALVAL: boundary index array JBC; B prints like E
+  I2C -> IBC in BOUNC: boundary index array IBC; B prints like 2
+  J2C -> JBC in BOUNC: boundary index array JBC; B prints like 2
+  CE -> DE in NEWVIS: epsilon field DE, clamped at SMNUM
+  YC -> MC in SOLVEQ: blockage flag MC as printed
+  B3 -> BB in LINERX: local array BB from the DIMENSION statement
+  B3 -> BB in DIRCOS: side BB in the law of cosines with AA and CC
+  LCXI -> UCXI in SOLVEQ: UCXI=UE-UW is defined just above; worn U prints like L (LCXI would be an uninitialised integer)
+  NC -> NO in DIRCOS: DO 10 K=1,NO like the I and J loops
+  BS -> BB in DIRCOS: BB is the side length computed above
+  LC -> LO in INIT: DO 10 I=1,LO like the J and K loops
+  SY8 -> SYB in TRANF: bottom face, with SXB and SZB
+  CDST -> DDST in SOLVEQ: DDST is the name assigned
+  DOST -> DDST in SOLVEQ: DDST is the name assigned
+  COST -> DDST in SOLVEQ: DDST is the name assigned
+  CDNT -> DDNT in SOLVEQ: DDNT is the name used
+  DONT -> DDNT in SOLVEQ: DDNT is the name used; D prints like O
+  ANAE -> ANAB in SOLVEQ: ANAB, the sum of the link coefficients (Appendix B)
+  PF -> PE in SOLVEQ: east-face pressure PE, with PW, in PCXI=PE-PW
+  TJC1 -> TJO1 in WALLFN: dummy argument TJO1
+  HINLM -> HINUM everywhere: HINUM, the large-number sentinel (worn U prints like L)
+  ISWL -> ISWU in the main program: ISWU in COMMON /LIMT/; worn U prints like L
+  SIGL -> SIGU in the main program: SIGU, passed to SOLVEQ for U, V and W; worn U prints like L
+  TJ01 -> TJO1 in WALLFN: dummy argument TJO1, as used in the body (TJO is the Jacobian, Appendix B); O and 0 print alike
+  L0 -> LO everywhere: Appendix B spells LO, MO, NO and FO with the letter O, like UO and DEO; the line printer prints O and 0 alike
+  M0 -> MO everywhere: Appendix B spells LO, MO, NO and FO with the letter O, like UO and DEO; the line printer prints O and 0 alike
+  N0 -> NO everywhere: Appendix B spells LO, MO, NO and FO with the letter O, like UO and DEO; the line printer prints O and 0 alike
+  F0 -> FO everywhere: Appendix B spells LO, MO, NO and FO with the letter O, like UO and DEO; the line printer prints O and 0 alike
+  DONW -> DDNW in SOLVEQ: DDNW, the north-west cross-diffusion coefficient, like DDNE, DDSE and DDSW; a worn D prints like O (DDET reads ODET on the next card)
+
+3. Verification
+
+FORTRAN VII D R05-01.00 on the emulated OS/32 compiles cns3d.f as follows (listing summary lines):
+
+  00-CNS3D   CNS3D        NO  ERROR(S)    TABLE SPACE USED:    11 K
+  01-DIRCOS  DIRCOS       NO  ERROR(S)    TABLE SPACE USED:     6 K
+  02-TRANF   TRANF        NO  ERROR(S)    TABLE SPACE USED:    10 K
+  03-INIT    INIT         NO  ERROR(S)    TABLE SPACE USED:     3 K
+  04-NEWVIS  NEWVIS       NO  ERROR(S)    TABLE SPACE USED:     5 K
+  05-SOLVEQ  SOLVEQ       NO  ERROR(S)    TABLE SPACE USED:    18 K
+  06-LINERX  LINERX       NO  ERROR(S)    TABLE SPACE USED:     3 K
+  07-BOUNC   BOUNC        NO  ERROR(S)    TABLE SPACE USED:     7 K
+  08-WALLFN  WALLFN       NO  ERROR(S)    TABLE SPACE USED:     5 K
+  09-SYMOUT  SYMOUT       NO  ERROR(S)    TABLE SPACE USED:     7 K
+  10-WALVAL  WALVAL       NO  ERROR(S)    TABLE SPACE USED:     3 K
+
+The table space of every routine equals the one printed in the listing.
+
+Each statement's location code, the byte offset of its object code, was compared with the code printed
+on the same card of the scan where the scan has one: 1381 of 1543 agree exactly. Of the other 162,
+105 differ in one hex digit and 37 in two, which are misread digits of the scan, and 20 are
+illegible on the scan. 80 of them are single statements between agreeing ones. In the short runs of
+disagreeing statements the difference is a misread leading digit (an offset such as 8000 hex that returns to
+zero after the run), not a change of size; no statement has the wrong size.
+
+Location codes and table space do not see a misreading that keeps the size of the code: one variable for another
+of the same type, a digit in a constant, + for -. Section 1 lists the ones found by checking names and by
+running the program (TESTS).
+
+4. gfortran
+
+Not needed: gfortran accepts cns3d.f as it is.
+
+  gfortran -std=legacy -fno-automatic -o cns3d cns3d.f
+
+5. cns3d_fixed.f
+
+cns3d.f with the problems in TESTS (notes 1 to 6) corrected, made with
+
+  python3 test/case.py cns3d.f cns3d_fixed.f wallvis bounc unsteady outletsum tmsource tmcross wallk
+
+  SOLVEQ, DO 22         F1 = VISE/SIGF on all nodes, not only interior ones (note 1)
+  BOUNC                 each wall passes its own link to WALLFN: AS, AE, AW, AT, AB instead of AN
+                        for the south, east, west, top and bottom walls (note 2)
+  SOLVEQ                APO(I,J,K) left out of ANAB, so the unsteady term is counted once
+                        (note 4)
+  BC, EAST OUT          the outlet flow summed over J=2..JT+1, K=2..KT+1, the cells of the inlet sum
+                        (note 3)
+
+  SOLVEQ, TM-SOURCE     the empty branch completed (note 5): SU = APO*FO*TJO and SP = -APO*TJO, the
+                        time term only. The link coefficients are those of the momentum equations
+                        (Prandtl number SIGU = 1), as the listing has them; SP leaves out the mass
+                        imbalance -CPO of the momentum cell, which for a scalar removes a uniform field
+  BC, EAST OUT          TM carried to the outlet like U, V, W, K and E
+
+  SOLVEQ, TM-SOURCE     the cross-derivative diffusion of a nonorthogonal grid added to SU, with the
+                        coefficients DDNE ... DDSB of the other equations (option tmcross)
+  WALLFN, K             near a wall only the production is replaced by the wall-function value; the
+                        listing set SU = (CPO+APO)*K + production, which drops the cross-derivative
+                        terms and takes the time term at the new K instead of the old, so the time
+                        derivative cancels in wall cells (option wallk)
+
+The temperature edits are new code: the listing has no temperature source to read. The temperature equation still
+uses ISWW, ALW and ERRW of the W equation, so the W correction printed is that of TM when INSOT is set.
+43 cards differ from cns3d.f. Like cns3d.f,
+it is set up for case D: the outlet is corrected on V; the other cases take the same case.py options
+as before, without wallvis and bounc.

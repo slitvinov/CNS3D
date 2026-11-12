@@ -1,0 +1,74 @@
+      PROGRAM FIG7
+      REAL X(2000),Y(2000)
+      INTEGER KIND(4),IP(8,4),NP(4)
+      CHARACTER*40 LAB(4)
+      CHARACTER*5 XL(8),YL(6)
+      DATA KIND/1,1,2,0/, NP/0,2,0,0/
+      DATA IP/8*0, 33,8,6*0, 8*0, 8*0/
+      DATA LAB/'PRESENT METHOD|(ORTHOGONAL GRID)',
+     1 'PRESENT METHOD|(NONORTHOGONAL GRID)','BURGGRAF [15]',
+     2 'Re = 400'/
+      DATA XL/'-0.4','-0.2','0','0.2','0.4','0.6','0.8','1.0'/
+      DATA YL/'0','0.2','0.4','0.6','0.8','1.0'/
+      U=0.84667
+      OPEN(2,FILE='fig7_style.dat')
+      READ(2,*) HLAB,CWID,DLAB,HLEG,XS,SLEN,TOFF,Y1,GLIN,GENT,SDY,TDY,
+     1          R1,R2,R3,SXO,SYO,HNAM,CWT,DNAM,FBAS,FEXP,HNY,CWY,XYT,
+     2          YYT,WLIN
+      CLOSE(2)
+      CALL METAFL('PDF')
+      CALL SETFIL('fig7_dislin.pdf')
+      CALL FILMOD('DELETE')
+      CALL PAGE(NINT(1470*U),NINT(1217*U))
+      CALL DISINI
+      CALL ERRMOD('ALL','OFF')
+      CALL PSFONT('Helvetica-Bold')
+      CALL CHAWTH(CWID)
+      CALL AXSPOS(NINT(213*U),NINT(1067*U))
+      CALL AXSLEN(NINT(1221*U),NINT(1024*U))
+      CALL TICKS(1,'XY')
+      CALL TICLEN(NINT(14*U),NINT(7*U))
+      CALL TICPOS('REVERS','XY')
+      CALL SETGRF('NAME','NAME','TICKS','TICKS')
+      CALL LINWID(NINT(WLIN*U))
+      CALL HEIGHT(NINT(HLAB*U))
+      CALL LABDIS(NINT(DLAB*U),'XY')
+      CALL LABELS('MYLAB','XY')
+      CALL LABJUS('RIGHT','Y')
+      DO 5 I=1,8
+   5  CALL MYLAB(XL(I),I,'X')
+      DO 6 I=1,6
+   6  CALL MYLAB(YL(I),I,'Y')
+      CALL NAME(' ','XY')
+      CALL GRAF(-0.4,1.0,-0.4,0.2,0.,1.,0.,0.2)
+      CALL TXTJUS('CENT')
+      CALL TXTJUS('MIDDLE')
+      CALL MIXALF
+      CALL SETBAS(FBAS)
+      CALL SETEXP(FEXP)
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HNAM*U))
+      CALL MESSAG('u/U]upperwall',NINT(823.5*U),NINT((1067+DNAM)*U))
+      CALL RESET('MIXALF')
+      CALL CHAWTH(CWY)
+      CALL HEIGHT(NINT(HNY*U))
+      CALL MESSAG('y/w',NINT(XYT*U),NINT(YYT*U))
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('TOP')
+      CALL CHAWTH(CWID)
+      CALL RDXY('fig7_orthogonal.dat',X,Y,N)
+      CALL PATT(IP(1,1),NP(1),U)
+      CALL CURVE(X,Y,N)
+      CALL RDXY('fig7_nonorthogonal.dat',X,Y,N)
+      CALL PATT(IP(1,2),NP(2),U)
+      CALL CURVE(X,Y,N)
+      CALL SOLID
+      CALL RDXY('fig7_burggraf.dat',X,Y,N)
+      DO 30 I=1,N
+  30  CALL MARK2(NXPOSN(X(I)),NYPOSN(Y(I)),R1,R2,R3,U)
+      CALL HEIGHT(NINT(HLEG*U))
+      CALL MYLEG(LAB,4,KIND,IP,NP,XS,SLEN,TOFF,Y1,GLIN,GENT,SDY,TDY,
+     1           R1,R2,R3,SXO,SYO,WLIN,U)
+      CALL ENDGRF
+      CALL DISFIN
+      END

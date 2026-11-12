@@ -1,0 +1,133 @@
+      PROGRAM FIG19
+      REAL X(2000),Y(2000),OFF(3),RT(3,2),YA(2),YB(2)
+      INTEGER KIND(3),IP(8,3),NP(3),ITH(3)
+      CHARACTER*40 LAB(3)
+      CHARACTER*60 FN
+      CHARACTER*1 PN(2)
+      CHARACTER*4 UL(4)
+      DATA KIND/1,1,2/, NP/0,2,0/, ITH/0,60,90/, PN/'a','b'/
+      DATA IP/8*0, 35,7,6*0, 8*0/
+      DATA LAB/'PRESENT RESULT (21 x 18 x 10 GRID)',
+     1 'RHIE (22 x 15 x 50 GRID) [23]','EXP., HUMPHREY ET. AL. [21]'/
+      DATA UL/'0','0.5','1.0','1.5'/
+      DATA YA/45.5,711.0/, YB/461.0,1130.5/
+      DATA RT/0.231,0.496,0.749, 0.230,0.499,0.746/
+      U=0.84667
+      XL=241.5
+      XR=1585.5
+      UPX=219.0
+      OFF(1)=0.
+      OFF(2)=(682.0-XL)/UPX
+      OFF(3)=(1130.5-XL)/UPX
+      OPEN(2,FILE='fig19_style.dat')
+      READ(2,*) HLAB,CWID,DLX,DLY,HTIT,CWT,HLEG,XS,SLEN,TOFF,Y1,GENT,
+     1  SDY,TDY,R1,R2,R3,SXO,SYO,WLIN,HTH,CTH,FBAS,FEXP,XRD,YRD,
+     2  XUT,DUT,XTA,YTA,XTB,YTB,XTH1,XTH2,XTH3,YTHA1,YTHA2,YTHA3,
+     3  YTHB1,YTHB2,YTHB3,XTHB1,XTHB2,XTHB3,GTH,CWL
+      CLOSE(2)
+      CALL METAFL('PDF')
+      CALL SETFIL('fig19_dislin.pdf')
+      CALL FILMOD('DELETE')
+      CALL PAGE(NINT(1772*U),NINT(1286*U))
+      CALL DISINI
+      CALL ERRMOD('ALL','OFF')
+      CALL PSFONT('Helvetica-Bold')
+      DO 100 IPN=1,2
+      CALL AXSPOS(NINT(XL*U),NINT(YB(IPN)*U))
+      CALL AXSLEN(NINT((XR-XL)*U),NINT((YB(IPN)-YA(IPN))*U))
+      CALL LABELS('NONE','XY')
+      CALL TICKS(0,'XY')
+      CALL NAME(' ','XY')
+      CALL LINWID(NINT(WLIN*U))
+      CALL GRAF(0.,(XR-XL)/UPX,0.,1.,1.,0.,1.,-0.25)
+      TL=14.
+      DO 10 K=1,3
+      NY=NYPOSN(RT(K,IPN))
+      CALL LINE(NINT(XL*U),NY,NINT((XL+TL)*U),NY)
+  10  CALL LINE(NINT(XR*U),NY,NINT((XR-TL)*U),NY)
+      DO 12 K=2,3
+      NX=NXPOSN(OFF(K))
+      CALL LINE(NX,NINT(YA(IPN)*U),NX,NINT((YA(IPN)+TL)*U))
+  12  CALL LINE(NX,NINT(YB(IPN)*U),NX,NINT((YB(IPN)-TL)*U))
+      NX=NXPOSN(1.5)
+      CALL LINE(NX,NINT(YB(IPN)*U),NX,NINT((YB(IPN)-TL)*U))
+      CALL CHAWTH(CWID)
+      CALL HEIGHT(NINT(HLAB*U))
+      CALL TXTJUS('CENT')
+      CALL TXTJUS('TOP')
+      DO 14 K=1,4
+  14  CALL MESSAG(UL(K)(1:LEN_TRIM(UL(K))),NXPOSN(0.5*(K-1)),
+     1            NINT((YB(IPN)+DLX)*U))
+      CALL TXTJUS('RIGHT')
+      CALL TXTJUS('MIDDLE')
+      CALL MESSAG('0',NINT((XL-DLY)*U),NYPOSN(0.))
+      CALL MESSAG('0.5',NINT((XL-DLY)*U),NYPOSN(0.5))
+      CALL MESSAG('1.0',NINT((XL-DLY)*U),NYPOSN(1.))
+      CALL CHAWTH(CWT)
+      CALL HEIGHT(NINT(HTIT*U))
+      CALL TXTJUS('CENT')
+      CALL MESSAG('r/d',NINT(XRD*U),NINT((YA(IPN)+YRD)*U))
+      CALL MIXALF
+      CALL SETBAS(FBAS)
+      CALL SETEXP(FEXP)
+      CALL MESSAG('U/U]ref',NINT(XUT*U),NINT((YB(IPN)+DUT)*U))
+      CALL RESET('MIXALF')
+      IF(IPN.EQ.1) CALL MESSAG('(a)',NINT(XTA*U),NINT(YTA*U))
+      IF(IPN.EQ.2) CALL MESSAG('(b)',NINT(XTB*U),NINT(YTB*U))
+      CALL HEIGHT(NINT(HTH*U))
+      CALL CHAWTH(CTH)
+      DO 16 K=1,3
+      IF(K.EQ.1) XT=XTH1
+      IF(K.EQ.2) XT=XTH2
+      IF(K.EQ.3) XT=XTH3
+      IF(IPN.EQ.2.AND.K.EQ.1) XT=XTHB1
+      IF(IPN.EQ.2.AND.K.EQ.2) XT=XTHB2
+      IF(IPN.EQ.2.AND.K.EQ.3) XT=XTHB3
+      IF(IPN.EQ.1.AND.K.EQ.1) YT=YTHA1
+      IF(IPN.EQ.1.AND.K.EQ.2) YT=YTHA2
+      IF(IPN.EQ.1.AND.K.EQ.3) YT=YTHA3
+      IF(IPN.EQ.2.AND.K.EQ.1) YT=YTHB1
+      IF(IPN.EQ.2.AND.K.EQ.2) YT=YTHB2
+      IF(IPN.EQ.2.AND.K.EQ.3) YT=YTHB3
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('MIDDLE')
+      CALL PSFONT('Symbol')
+      CALL MESSAG('q',NINT(XT*U),NINT(YT*U))
+      NQ=NLMESS('q')
+      CALL PSFONT('Helvetica-Bold')
+      CALL MIXALF
+      WRITE(FN,'(A,I2,A)') ' = ',ITH(K),'[o'
+      IF(ITH(K).EQ.0) FN=' = 0[o'
+      CALL MESSAG(FN(1:LEN_TRIM(FN)),NINT((XT+GTH)*U)+NQ,NINT(YT*U))
+      CALL RESET('MIXALF')
+  16  CONTINUE
+      CALL TXTJUS('LEFT')
+      CALL TXTJUS('TOP')
+      CALL CHAWTH(CWID)
+      DO 30 K=1,3
+      DO 25 IK=1,2
+      IF(IK.EQ.1) WRITE(FN,'(A,A,A,I0,A)') 'fig19',PN(IPN),'_theta',
+     1   ITH(K),'_present.dat'
+      IF(IK.EQ.2) WRITE(FN,'(A,A,A,I0,A)') 'fig19',PN(IPN),'_theta',
+     1   ITH(K),'_rhie.dat'
+      CALL RDXY(FN,X,Y,N)
+      DO 20 I=1,N
+  20  X(I)=X(I)+OFF(K)
+      CALL PATT(IP(1,IK),NP(IK),U)
+      CALL CURVE(X,Y,N)
+  25  CONTINUE
+      CALL SOLID
+      WRITE(FN,'(A,A,A,I0,A)') 'fig19',PN(IPN),'_theta',ITH(K),
+     1   '_humphrey.dat'
+      CALL RDXY(FN,X,Y,N)
+      DO 28 I=1,N
+  28  CALL MARK2(NXPOSN(X(I)+OFF(K)),NYPOSN(Y(I)),R1,R2,R3,U)
+  30  CONTINUE
+      CALL ENDGRF
+ 100  CONTINUE
+      CALL CHAWTH(CWL)
+      CALL HEIGHT(NINT(HLEG*U))
+      CALL MYLEG(LAB,3,KIND,IP,NP,XS,SLEN,TOFF,Y1,0.,GENT,SDY,TDY,
+     1           R1,R2,R3,SXO,SYO,WLIN,U)
+      CALL DISFIN
+      END

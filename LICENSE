@@ -1,0 +1,36 @@
+MIT License
+
+Copyright (c) 2026 Sergey Litvinov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+-----------------------------------------------------------------------------
+
+This licence covers the work added in this repository: the scripts, the
+corrections in cns3d_fixed.f, the redrawn figures and their programs, and the
+notes. It does not cover the original material:
+
+- report.pdf, code.pdf, and their transcriptions report.md, fig/ and cns3d.f
+  reproduce NASA Contractor Report CR-178818, Y. S. Chen, "A Computer Code for
+  Three-Dimensional Incompressible Flows Using Nonorthogonal Body-Fitted
+  Coordinate Systems", Universities Space Research Association, prepared for
+  NASA Marshall Space Flight Center, March 1986 (contract NAS8-35918). The
+  report's distribution statement is "Unclassified-Unlimited"; it is
+  available from the NASA Technical Reports Server,
+  https://ntrs.nasa.gov/citations/19860017072
