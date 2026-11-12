@@ -12,6 +12,8 @@ gen, ana.py, interp.py, fig.py – grid and convergence study of cns3d and cns2d
 
 **gen tbendd** *factor dir inlet bend-factor*
 
+**gen cavityb** *factor dir nodes*
+
 **python3 ana.py** [ **-s** *suffix* ] *dir* ...
 
 **python3 ana.py** [ **-s** *suffix* ] **-d** *ref dir* ...
@@ -26,6 +28,10 @@ gen, ana.py, interp.py, fig.py – grid and convergence study of cns3d and cns2d
 
 Cases of the report:
 
+    cavity  driven cavity, Re 400, lid u = 1 at j = m, uniform 31 × 31
+    cavityb cavity on the report's nonorthogonal grid (Figure 5b), read
+            from *nodes* (../../redraw/fig5b_nodes.csv); refined over
+            the point index along each grid line
     bend    laminar 90-deg bend, square duct, Re 790, 20 × 17 × 9
     lstep   laminar step, 1:2 expansion, Re 300 in control, 45 × 45
     tstep   turbulent step, 2:3 expansion, Re 45000, 45 × 43
@@ -36,7 +42,7 @@ Cases of the report:
     tstepfp tstepf with the inlet u = 8/7 (distance to the nearer
             wall)^(1/7)
 
-The bend has inner radius 1.8, outer 2.8, four stations before the bend, ten in it and six after, and a developed laminar inlet profile. The laminar step has a 30h channel, x points stretched as exp(0.5 s), uniform y and a parabolic inlet over the upper half; Re 300 on the inlet height is the report's Re 600 on twice that height. The turbulent step has 9 points over the 4h before the step, 36 over 30h after it, stretched as exp(2.5 s), uniform y, a uniform inlet, inlet k from 4 percent intensity and length scale 0.14. *Tstepf* has 3 points before the step, 42 over 15.4h after it, stretched as exp(2.698 s), y spacing reduced towards the walls and the step corner, inlet k from 2.97 percent intensity and length scale 3.741; it is run with hybrid factor 0.792 and flag 8 (no wall function at the step corner). Relaxation is 0.5, except 0.3 for the pressure of *tstep* and 0.7 for the viscosity of the turbulent cases. A grid marked w below is a *tstepw* grid.
+The cavities are run with flag 16 (../README.md). The bend has inner radius 1.8, outer 2.8, four stations before the bend, ten in it and six after, and a developed laminar inlet profile. The laminar step has a 30h channel, x points stretched as exp(0.5 s), uniform y and a parabolic inlet over the upper half; Re 300 on the inlet height is the report's Re 600 on twice that height. The turbulent step has 9 points over the 4h before the step, 36 over 30h after it, stretched as exp(2.5 s), uniform y, a uniform inlet, inlet k from 4 percent intensity and length scale 0.14. *Tstepf* has 3 points before the step, 42 over 15.4h after it, stretched as exp(2.698 s), y spacing reduced towards the walls and the step corner, inlet k from 2.97 percent intensity and length scale 3.741; it is run with hybrid factor 0.792 and flag 8 (no wall function at the step corner). Relaxation is 0.5, except 0.3 for the pressure of *tstep* and 0.7 for the viscosity of the turbulent cases. A grid marked w below is a *tstepw* grid.
 
 A check case, not in the report, with no measurements to compare with:
 
@@ -58,7 +64,7 @@ The cross-section of *tduct*, *tbendg* and *tbendd* is graded from each wall wit
 
 *Interp.py* replaces the initial field of *fine*/field, except the inlet section i = 1, by the result *coarse*/field.o interpolated linearly: over the point index when *fine* is a refinement of *coarse*, or with **-x** over the x and y coordinates of a step grid.
 
-*Fig.py* draws, from the results in *workdir*: fig10.png, xr of the laminar step at Re 600 on the 45×45 and 1409×353 grids over the report's Figure 10 (../../redraw/fig10*); fig19.png, the laminar bend profiles of the 20×17×9 and 153×129×65 grids over the report's Figure 19 and Humphrey's measurements; step.png, xr of the laminar step against the x spacing.
+*Fig.py* draws, from the results in *workdir*: fig7.svg, the cavity centreline velocity on the report's grids and on the finest grids over the report's Figure 7 and Burggraf's results; fig10.svg, xr of the laminar step against Re, hybrid and central (hybrid factor 0.1) differencing, on the 45×45 and 1409×353 grids, converged runs only, over the report's Figure 10 (../../redraw/fig10*); fig19.svg, the laminar bend profiles of the 20×17×9 and 153×129×65 grids over the report's Figure 19 and Humphrey's measurements; step.svg, xr of the laminar step against the x spacing.
 
 With **-d** it prints the RMS difference of each of the six profiles of each *dir* from those of *ref*, on 49 points across the duct. The profiles are named by angle and plane: 60a is 60 deg, z/d 0; 60b is 60 deg, z/d 0.245.
 
@@ -116,6 +122,36 @@ x and y refined apart, relaxation 0.3, TOL 1.E-6; rows are the x factor, columns
     x 40                     10.684
 
 The x 1, y 1 result is the 45×45 run at relaxation 0.5. Iterations: 19420, 28320, 61680; 23710, 50340; 480390, 62320, 186470; 79600, 101580; 69730. The 1409×353 and 1761×177 runs start from the 1409×177 and 353×177 results interpolated (*interp.py*). Refining y alone 4 times (45×177) diverged at relaxation 0.3 and 0.05. The 705×353 result, restarted in double precision at TOL 1.E-7, gives 10.609 after 80690 more iterations. The report gives 8.44 with the hybrid scheme and 10.53 with central differencing; Armaly's measurement is 11.45 (../../redraw/fig10*).
+
+Against Re, relaxation 0.5 on 45×45 and 0.1/0.3/0.3 on 1409×353, hybrid factor 0.5 (hybrid) and 0.1 (central); the 1409×353 runs start from the x 32, y 8 result above:
+
+    Re     hybrid 45×45      central 45×45        central 1409×353
+    100    3.107   39270     3.125    36400       3.215   277500
+    150    4.138   27250     4.199    25020       4.318   189230
+    200    5.072   22380     5.177    21420       5.328   169230
+    300    6.723   19260     6.887   (*)          7.130   151090
+    400    7.976   18150     8.041   (*)          8.642   156820
+    500    8.530   17660     8.540   (*)          9.841   144900
+    600    8.210   21390     8.807   (*)         10.716    40580
+    700    7.467   26840     1.153   (*)         11.473   179890
+    800    6.978   34910     0.690   (*)         12.152   190600
+
+(*) stopped at 2000000 iterations. At Re 700 and 800 the central 45×45 u next to the lower wall changes sign more than twice. Figure 10 of the report gives, at Re 800, about 7.7 hybrid and 12.8 central.
+
+### Driven cavity
+
+Re 400, relaxation 0.5, TOL 1.E-5. umin is the smallest u on the vertical centreline and y its height:
+
+    grid        iterations    umin      y
+    31×31          84840     -0.2444   0.300
+    61×61         222460     -0.3038   0.285
+    121×121      1196720     -0.3211   0.283
+    241×241      2000000 (*) -0.3256   0.280
+    31×31 b      2000000 (*) -0.2178   0.330
+    61×61 b      2000000 (*) -0.2919   0.295
+    121×121 b    2000000 (*) -0.3185   0.285
+
+b marks the report's nonorthogonal grid (*cavityb*). (*) the pressure error stays near 1.E-5. 241×241 b diverged in 20 iterations; its smallest spacing is 1.E-5, set by the five decimals of the digitized nodes. The report's Figure 7 gives about −0.25 at y 0.30 on both grids; Burggraf gives −0.26.
 
 ### Turbulent step
 
@@ -259,7 +295,7 @@ The turbulent bend, designed streamwise points, 32 intervals per base bend inter
 
 ## FIGURES
 
-fig10.png, fig19.png, step.png (*fig.py*).
+fig7.svg, fig10.svg, fig19.svg, step.svg (*fig.py*), on a white background.
 
 ## SOURCE
 

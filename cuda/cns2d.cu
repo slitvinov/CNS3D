@@ -395,6 +395,8 @@ __global__ void k_wall(int ie, int fv) {
 }
 __global__ void k_outlet_links(Box B) {
   DECODE(B);
+  if (G.flg[c] & 16)
+    return;
   A(AE, i, j, k) = 0;
 }
 __global__ void k_assemble(Box B, int fv, int ie) {
@@ -758,6 +760,8 @@ __global__ void k_outflow(R *flow) {
 }
 __global__ void k_outlet(Box B, R *uinc) {
   DECODE(B);
+  if (G.flg[c] & 16)
+    return;
   int I = LT;
   A(U, I + 1, j, k) = A(U, I, j, k) - uinc[c];
   A(V, I + 1, j, k) = A(V, I, j, k);
@@ -1225,7 +1229,7 @@ static void setup(int c) {
   for (i = 1; i <= LO; i++)
     for (j = 1; j <= MO; j++)
       for (k = 1; k <= NO; k++) {
-        int m = (j == 1 || j == M) ? 1 : 0;
+        int m = (j == 1 || (j == M && !(K->flags & 16))) ? 1 : 0;
         if (i >= L1 && i <= L2 && j >= M1 && j <= M2 && k >= N1 && k <= N2)
           m = 1;
         if (i > L1 && i <= L2 && j > M1 && j <= M2 && k > N1 && k <= N2)
@@ -1397,8 +1401,8 @@ static void read_list(const char *path) {
       die("%s:%d: hybrid factor %g is not in (0, 1]", path, line, hyb);
     k->hyb = hyb;
     k->c1 = c1;
-    if (k->flags < 0 || k->flags > 15)
-      die("%s:%d: flags %d is not in [0, 15]", path, line, k->flags);
+    if (k->flags < 0 || k->flags > 31)
+      die("%s:%d: flags %d is not in [0, 31]", path, line, k->flags);
     if (++hNB == cap) {
       cap *= 2;
       cases = (Case *)erealloc(cases, cap * sizeof(Case));

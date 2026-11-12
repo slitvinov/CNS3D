@@ -292,6 +292,89 @@ static void tbendg(const char *d, int r, int rs, int nb, const char *f) {
   finish();
 }
 
+static void cavity(const char *d, const char *nodes) {
+  int n0 = 31, n = (n0 - 1) * RI + 1, i, j, k;
+  double *X0 = malloc(sizeof(double) * n0 * n0), *Y0 = malloc(sizeof(double) * n0 * n0);
+  double *Xa = malloc(sizeof(double) * n * n0), *Ya = malloc(sizeof(double) * n * n0);
+  double *X = malloc(sizeof(double) * n * n), *Y = malloc(sizeof(double) * n * n);
+  double a[MAXN], b[MAXN], dz = 1.0 / (n0 - 1);
+  if (!X0 || !Y0 || !Xa || !Ya || !X || !Y)
+    die("out of memory");
+  for (i = 0; i < n0; i++)
+    for (j = 0; j < n0; j++) {
+      X0[i * n0 + j] = (double)i / (n0 - 1);
+      Y0[i * n0 + j] = (double)j / (n0 - 1);
+    }
+  if (nodes) {
+    FILE *f = fopen(nodes, "r");
+    char ln[256];
+    double px, py, x, y;
+    int ii, jj;
+    if (!f)
+      die(nodes);
+    if (!fgets(ln, sizeof ln, f))
+      die(nodes);
+    while (fgets(ln, sizeof ln, f))
+      if (sscanf(ln, "%d,%d,%lf,%lf,%lf,%lf", &ii, &jj, &px, &py, &x, &y) == 6 && ii >= 1 && ii <= n0 && jj >= 1 && jj <= n0) {
+        X0[(ii - 1) * n0 + jj - 1] = x;
+        Y0[(ii - 1) * n0 + jj - 1] = y;
+      }
+    fclose(f);
+    if (Y0[0] > Y0[n0 - 1])
+      for (i = 0; i < n0; i++)
+        for (j = 0; j < n0 / 2; j++) {
+          double t = X0[i * n0 + j];
+          X0[i * n0 + j] = X0[i * n0 + n0 - 1 - j];
+          X0[i * n0 + n0 - 1 - j] = t;
+          t = Y0[i * n0 + j];
+          Y0[i * n0 + j] = Y0[i * n0 + n0 - 1 - j];
+          Y0[i * n0 + n0 - 1 - j] = t;
+        }
+  }
+  for (j = 0; j < n0; j++) {
+    for (i = 0; i < n0; i++) {
+      a[i] = X0[i * n0 + j];
+      b[i] = Y0[i * n0 + j];
+    }
+    double ra[MAXN], rb[MAXN];
+    refine(a, n0, RI, ra);
+    refine(b, n0, RI, rb);
+    for (i = 0; i < n; i++) {
+      Xa[i * n0 + j] = ra[i];
+      Ya[i * n0 + j] = rb[i];
+    }
+  }
+  for (i = 0; i < n; i++) {
+    double ra[MAXN], rb[MAXN];
+    refine(Xa + i * n0, n0, RI, ra);
+    refine(Ya + i * n0, n0, RI, rb);
+    for (j = 0; j < n; j++) {
+      X[i * n + j] = ra[j];
+      Y[i * n + j] = rb[j];
+    }
+  }
+  for (k = 0; k < n; k++) {
+    X[k] = 0;
+    X[(n - 1) * n + k] = 1;
+    Y[k * n] = 0;
+    Y[k * n + n - 1] = 1;
+  }
+  int h[9] = {n, n, 4, 0, 0, 0, 0, 0, 0};
+  start(d, h, " 3000    1   10    1\n 0.5000 0.5000 0.5000 0.5000 0.5000 0.5000 0.5000 0.5000\n  400.0 0.0000\n");
+  for (k = 0; k < 4; k++)
+    for (i = 0; i < n; i++) {
+      fputs("\n\n", out);
+      for (j = 0; j < n; j++)
+        row(X[i * n + j], Y[i * n + j], (k - 0.5) * dz, j == n - 1 && i > 0 && i < n - 1, 0, 0, 0, 0);
+    }
+  finish();
+  free(X0);
+  free(Y0);
+  free(Xa);
+  free(Ya);
+  free(X);
+  free(Y);
+}
 static void lstep(const char *d) {
   int L = 44 * RI + 1, M = 44 * RJ + 1, i, j, k;
   double b = 0.5, LX = 30, dz = 2.0 / 44;
@@ -398,14 +481,20 @@ int main(int argc, char **argv) {
     tbendg(argv[3], r, 1, nb, argv[4]);
     return 0;
   }
+  if (argc == 5 && !strcmp(argv[1], "cavityb") && (r = factors(argv[2])) >= 1) {
+    cavity(argv[3], argv[4]);
+    return 0;
+  }
   if (argc != 4 || (r = factors(argv[2])) < 1)
-    die("usage: gen bend|tbend|tbendw|lstep|tstep|tstepw|tstepf|tstepfw|tstepfp|tduct factor[,factor[,factor]] dir | gen tbendg factor dir inlet [streamwise-factor] | gen tbendd factor dir inlet bend-factor");
+    die("usage: gen cavity|bend|tbend|tbendw|lstep|tstep|tstepw|tstepf|tstepfw|tstepfp|tduct factor[,factor[,factor]] dir | gen tbendg factor dir inlet [streamwise-factor] | gen tbendd factor dir inlet bend-factor | gen cavityb factor dir nodes");
   if (!strcmp(argv[1], "bend"))
     bend(argv[3], 0, 0);
   else if (!strcmp(argv[1], "tbend"))
     bend(argv[3], 1, 0);
   else if (!strcmp(argv[1], "tbendw"))
     bend(argv[3], 1, 1);
+  else if (!strcmp(argv[1], "cavity"))
+    cavity(argv[3], NULL);
   else if (!strcmp(argv[1], "lstep"))
     lstep(argv[3]);
   else if (!strcmp(argv[1], "tstep"))

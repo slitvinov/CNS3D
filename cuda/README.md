@@ -50,6 +50,9 @@ The cases must share the grid size, laminar or turbulent, the iteration limit an
                2  near-wall k production from the velocity along the wall
                4  wall distance to the wall node
                8  no wall function at the step corner
+              16  closed: i = l keeps its field values, as i = 1 does, and
+                  j = m is not a wall, so a velocity given there drives the
+                  flow (a lid; cns2d only)
     c1       C1 of the ε equation (1.43)
 
 ## ENVIRONMENT
