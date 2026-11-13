@@ -938,7 +938,8 @@ static int hL, hM, hN, hLT, hMT, hIG, curl;
 static Case *cases;
 static S hs;
 static R *d_wk, *d_flow;
-#define PBLOCK_SHARED (sizeof(R) * 28 * hDI)
+static int pnp = 8;
+#define PBLOCK_SHARED (sizeof(R) * (4 + 3 * pnp) * hDI)
 static cudaStream_t stream;
 static int nsweep[8];
 static R sigma[8];
@@ -1016,7 +1017,7 @@ static void solvep(int tau) {
   pmass(tau);
   RUN(k_pdiag, in);
   k_pmean<<<hNB, 512, 0, stream>>>(in, d_flow, 1);
-  k_pblock<<<hNB, 512, PBLOCK_SHARED, stream>>>(in, d_wk);
+  k_pblock<<<hNB, 64 * pnp, PBLOCK_SHARED, stream>>>(in, d_wk);
   RUN(k_pblock_set, in, d_wk);
   sweeps(in, PP_, nsweep[0]);
   RUN(k_pupdate, in);
@@ -1920,8 +1921,11 @@ int main(int argc, char **argv) {
     usage();
   hDI = arg(argv[1], "di");
   hDJ = arg(argv[2], "dj");
-  if (PBLOCK_SHARED > 227 * 1024)
-    die("di %d: at most %d", hDI, (int)(227 * 1024 / (28 * sizeof(R))));
+  pnp = (int)((227 * 1024 / (sizeof(R) * hDI) - 4) / 3);
+  if (pnp > 8)
+    pnp = 8;
+  if (pnp < 1)
+    die("di %d: at most %d", hDI, (int)(227 * 1024 / (7 * sizeof(R))));
   hNT = hDI * hDJ;
   read_list(argv[3]);
   t0 = tnow();
@@ -1942,8 +1946,8 @@ int main(int argc, char **argv) {
   {
     int mg = envint("MG", MAXLV);
     mgmin = envint("MGMIN", 33);
-    nu1 = envint("NU1", 2);
-    nu2 = envint("NU2", 2);
+    nu1 = envint("NU1", 3);
+    nu2 = envint("NU2", 3);
     nuc = envint("NUC", 10);
     mgw = envreal("MGW", 0.7);
     while (nlv < mg && nlv < MAXLV && lv[0].blk[0] >= 0 && coarsenable(nlv - 1)) {
@@ -1952,7 +1956,7 @@ int main(int argc, char **argv) {
     }
   }
   CK(cudaFuncSetAttribute(k_pblock, cudaFuncAttributeMaxDynamicSharedMemorySize,
-                          (int)(sizeof(R) * 28 * lv[0].DI)));
+                          (int)(sizeof(R) * (4 + 3 * pnp) * lv[0].DI)));
   CK(cudaGetSymbolAddress(&symp[0], DI));
   CK(cudaGetSymbolAddress(&symp[1], DJ));
   CK(cudaGetSymbolAddress(&symp[2], NT));

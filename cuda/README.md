@@ -35,7 +35,7 @@ In *ns2d* the reference is node (l − 1, (m − 1)/2). The velocity gradient of
 
 At a wall the diffusion uses the wall node's own viscosity. In turbulent flow a wall function sets the shear on the link to each wall and the production of k next to it. After its equation k is kept positive, since the wall value of ε is proportional to k to the power 1.5.
 
-*Di*, *dj*, *dk* are the array sizes, at least one more than the largest grid. *Di* ≤ 2075, 1037 in double precision; *dk* ≤ 128 in *cns3d*, 16 in *cns2d*.
+*Di*, *dj*, *dk* are the array sizes, at least one more than the largest grid. *Di* ≤ 2075, 1037 in double precision, in *cns2d* and *cns3d*; ≤ 8301, 4150 in double, in *ns2d*; *dk* ≤ 128 in *cns3d*, 16 in *cns2d*.
 
 Each line of *list* is a case:
 
@@ -78,8 +78,8 @@ The cases must share the grid size, laminar or turbulent, the iteration limit an
     MG     ns2d: most grids (12); 1 is no multigrid
     MGMIN  ns2d: smallest size of a coarse grid (33)
     MGW    ns2d: factor of the coarse-grid change (0.7)
-    NU1    ns2d: iterations before the coarser grid (2)
-    NU2    ns2d: iterations after it (2)
+    NU1    ns2d: iterations before the coarser grid (3)
+    NU2    ns2d: iterations after it (3)
     NUC    ns2d: iterations on the coarsest grid (10)
 
 ## FILES
