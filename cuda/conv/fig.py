@@ -114,7 +114,7 @@ if __name__ == "__main__":
           ("y refined 4 times", BLUE, ((4, f"{w}/ls_4_4"), (8, f"{w}/ls_8_4"), (16, f"{w}/ls_16_4"), (32, f"{w}/ls_32_4"), (40, f"{w}/ls_40_4"))),
           ("y refined 8 times", ORANGE, ((16, f"{w}/ls_16_8"), (32, f"{w}/ls_32_8")))), f"{here}/step.svg")
     reynolds((("this program, hybrid, 45×45", ORANGE, "--", "s", f"{w}/reb_%d", RE),
-              ("this program, central, 45×45", BLUE, "--", "s", f"{w}/rec_%d", RE[:7]),
+              ("this program, central, 45×45", BLUE, "--", "s", f"{w}/rec_%d", RE),
               ("this program, hybrid, 1409×353", ORANGE, "-", "D", f"{w}/ref_%d", RE),
               ("this program, central, 1409×353", BLUE, "-", "D", f"{w}/recf_%d", RE)), f"{here}/fig10.svg")
     cavity(((("this program, 31×31", AQUA, f"{w}/cau_1"), ("this program, 241×241", BLUE, f"{w}/cau_8")),

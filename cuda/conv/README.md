@@ -70,7 +70,7 @@ With **-d** it prints the RMS difference of each of the six profiles of each *di
 
 ## RESULTS
 
-Bend results are from *cns3d*, step and cavity results from *ns2d* (../README.md), single precision, TOL 1.E-5, hybrid factor 0.5, unless given. Every *ns2d* run starts from the field *gen* writes, unless given. A run is converged when the program printed done; (*) marks a run stopped at its iteration limit, which the program prints as not converged.
+Bend results are from *cns3d*, single precision, TOL 1.E-5 on the sum of the changes (../README.md), hybrid factor 0.5, unless given. Step and cavity results are from *ns2d* with multigrid, TOL 1.E-6 on the largest residual ratio, an iteration limit of 10000, double precision, or single on grids wider than 1036 points, hybrid factor 0.5, unless given. Every *ns2d* run starts from the field *gen* writes, unless given. A run is converged when the program printed done; (*) marks a run stopped at its iteration limit, which the program prints as not converged.
 
 ### Laminar bend
 
@@ -97,95 +97,97 @@ One direction refined 4 times:
 
 ### Laminar step
 
-    grid       relax   TOL     iterations   xr
-    45×45      0.5     1.E-6    12090       8.186
-    89×89      0.5     1.E-6    13640       9.073
-    133×133    0.5     1.E-6    21330       9.692
-    133×133    0.3     1.E-6    43910       9.697
-    177×177    0.5     1.E-6   2000000 (*)  9.962
-    177×177    0.3     1.E-6    58090      10.013
+    grid       relax   iterations    xr
+    45×45      0.5       4700        8.127
+    89×89      0.5       1884        9.074
+    133×133    0.5       1944        9.692
+    133×133    0.3      10000 (*)    9.691
+    177×177    0.5       1664       10.001
+    177×177    0.3       3812       10.000
 
-(*) the errors stay near 4.E-2. A fit to the 89, 133 and 177 grids at relaxation 0.3 (89 at 0.5) gives p = 0.96, xr∞ = 11.00.
+(*) the residual ratio stays near 9.E-4. A fit to the 89, 133 and 177 grids at relaxation 0.5 gives p = 1.00, xr∞ = 10.93.
 
-x and y refined apart, relaxation 0.3, TOL 1.E-6; rows are the x factor, columns the y factor:
+x and y refined apart, relaxation 0.3; rows are the x factor, columns the y factor:
 
-    xr      y 1      y 2      y 4          y 8
-    x 1     8.186             8.458        8.464 (*)
-    x 4     9.658    9.926   10.013
-    x 8    10.072            10.412
-    x 16   10.267            10.588       10.594
-    x 32                     10.668       10.697
-    x 40                     10.683
+    xr      y 1      y 2      y 4      y 8
+    x 1     8.127             8.452    8.492
+    x 4     9.659    9.929   10.000
+    x 8    10.071            10.405
+    x 16   10.270            10.596   10.635
+    x 32                     10.679   10.687
+    x 40                     10.686
 
-The x 1, y 1 result is the 45×45 run at relaxation 0.5. Iterations: 12090, 81110, 2000000 (*); 17910, 24210, 58090; 13450, 44830; 46020, 55280, 164420; 66440, 88450; 60280. (*) the errors stay near 3.E-6. The 1409×353 and 1761×177 runs start from the 1409×177 and 353×177 results interpolated (*interp.py*). The report gives 8.44 with the hybrid scheme and 10.53 with central differencing; Armaly's measurement is 11.45 (../../redraw/fig10*).
+The x 1, y 1 result is the 45×45 run at relaxation 0.5. Iterations: 4700, 4872, 5188; 3216, 3348, 3812; 2872, 3232; 2988, 3148, 3312; 3812, 2548; 2548. The x 32 and x 40 runs are single precision; their residual ratios stop near 6.E-7. The 1409×353 and 1761×177 runs start from the 1409×177 and 353×177 results interpolated (*interp.py*). The report gives 8.44 with the hybrid scheme and 10.53 with central differencing; Armaly's measurement is 11.45 (../../redraw/fig10*).
 
 Against Re, relaxation 0.5 on 45×45 and 0.3 on 1409×353, hybrid factor 0.5 (hybrid) and 0.1 (central); the 1409×353 runs start from the x 32, y 8 result above, which is the hybrid Re 600 run:
 
-    Re     hybrid 45×45     central 45×45      hybrid 1409×353    central 1409×353
-    100    3.110   2660     3.129   2600       3.212   64560      3.212   64560
-    150    4.138   2320     4.202   2280       4.328   50550      4.328   50550
-    200    5.071   2170     5.179   2010       5.364   50530      5.363   50520
-    300    6.720   1980     6.891   1850       7.268   50550      7.265   50500
-    400    7.972   1840     8.268   1700       8.861   57150      8.863   57090
-    500    8.520   2700     9.229   2430      10.109   49860     10.111   49320
-    600    8.188   3940     9.906   3170      10.697      10     10.697      60
-    700    7.464   5000    10.298 (*)         11.392  142610     11.355   86630
-    800    6.991   5750    10.212 (*)         12.086  586270     12.082  124610
+    Re     hybrid 45×45     central 45×45     hybrid 1409×353    central 1409×353
+    100    3.102    920     3.122    920      3.215   1268       3.215   1176
+    150    4.123    930     4.188   1150      4.318   1360       4.319   1200
+    200    5.047    980     5.157   1240      5.329   1900       5.329   1744
+    300    6.688   1360     6.846   1320      7.131   2336       7.129   2100
+    400    7.922   2120     8.194   1900      8.637   2576       8.637   2276
+    500    8.458   3540     9.117   2580      9.817   2760       9.826   2420
+    600    8.127   4700     9.743   2990     10.689    148      10.724   1000
+    700    7.377   4320    10.226   3340     11.421   3308      11.484   2928
+    800    6.873   3920    10.603   3500     12.077   3728      12.171   3508
 
-(*) stopped at 2000000 iterations with the errors near 3.E-3. On 1409×353 the two schemes differ by at most 0.037. Figure 10 of the report gives, at Re 800, about 7.7 hybrid and 12.8 central.
+On 1409×353 the two schemes differ by at most 0.009 up to Re 500 and by 0.094 at Re 800. Figure 10 of the report gives, at Re 800, about 7.7 hybrid and 12.8 central.
 
 ### Driven cavity
 
-Re 400, relaxation 0.5, TOL 1.E-5. umin is the smallest u on the vertical centreline and y its height:
+Re 400, relaxation 0.5. umin is the smallest u on the vertical centreline and y its height:
 
     grid        iterations    umin      y
-    31×31          2030      -0.2448   0.300
-    61×61          2380      -0.3030   0.285
-    121×121        3880      -0.3198   0.283
-    241×241       11590      -0.3229   0.288
-    31×31 b        4260      -0.2162   0.330
-    61×61 b        6240      -0.2898   0.295
-    121×121 b     12740      -0.3161   0.285
-    241×241 b     48230      -0.3234   0.283
+    31×31           530      -0.2376   0.300
+    61×61          1430      -0.2992   0.285
+    121×121         620      -0.3188   0.283
+    241×241         700      -0.3242   0.283
+    31×31 b         500      -0.2198   0.295
+    61×61 b        1380      -0.2882   0.295
+    121×121 b       608      -0.3138   0.285
+    241×241 b       660      -0.3223   0.285
 
-b marks the report's nonorthogonal grid (*cavityb*). Its digitized boundary nodes lie up to 0.001 off the walls; *gen* moves them onto the walls before refining. The report's Figure 7 gives about −0.25 at y 0.30 on both grids; Burggraf gives −0.26.
+b marks the report's nonorthogonal grid (*cavityb*). Its digitized boundary nodes lie up to 0.001 off the walls; *gen* moves them onto the walls before refining. A fit to the 61, 121 and 241 grids gives p = 1.86, umin∞ = −0.3263, and on the b grids p = 1.59, umin∞ = −0.3265. The report's Figure 7 gives about −0.25 at y 0.30 on both grids; Burggraf gives −0.26.
 
 ### Turbulent step
 
-    grid          relax     iterations        xr
-    45×43         0.5/0.3    13520            4.353
-    89×85         0.5/0.3     9040            5.219
-    133×127       0.5/0.3    12770            5.457
-    133×127       0.3/0.2    16160            5.455
-    177×169       0.5/0.3    23040            5.555
-    177×169       0.3/0.2    24430            5.560
-    88×81 w       0.5/0.3     7230            5.175
-    174×157 w     0.3/0.2    19950            5.747
+    grid          relax     iterations     xr
+    45×43         0.5/0.3      760        4.302
+    89×85         0.5/0.3     1616        5.203
+    133×127       0.5/0.3     3284        5.444
+    133×127       0.3/0.2     7604        5.444
+    177×169       0.5/0.3     5560        5.542
+    177×169       0.3/0.2    10000 (*)    5.542
+    88×81 w       0.5/0.3     1488        5.178
+    174×157 w     0.3/0.2    10000 (*)    5.764
 
-A fit to the 89, 133 and 177 grids at relaxation 0.3/0.2 (89 at 0.5/0.3) gives p = 1.33, xr∞ = 5.79.
+(*) the residual ratio is 7.E-6 (177×169) and 3.E-6 (174×157 w). A fit to the 89, 133 and 177 grids at relaxation 0.5/0.3 gives p = 1.58, xr∞ = 5.71.
 
-x and y refined apart, relaxation 0.3/0.2, TOL 1.E-6:
+x and y refined apart, relaxation 0.3/0.2:
 
-    xr      y 1      y 2          y 4          y 8
-    x 1     4.353                 4.398
-    x 4     5.254    5.511        5.562
-    x 8     5.272                 5.679        diverged
-    x 16    5.291                 5.726        5.775 (*)
-    x 32                          5.843 (*)
-    x 16 w  5.430    5.496 (*)    5.787        6.202 (*)
-    x 32 w                        5.788
+    xr      y 1          y 2          y 4          y 8
+    x 1     4.302                     4.186 (*)
+    x 4     5.267        5.507        5.542 (*)
+    x 8     5.285                     5.679 (*)    5.920 (*)
+    x 16    5.290                     5.734 (*)    6.013 (*)
+    x 32                              5.827 (*)
+    x 16 w  5.399 (*)    5.502 (*)    5.771 (*)    6.130 (*)
+    x 32 w                            5.492 (*)
 
-The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3, TOL 1.E-5. Iterations: 506060; 37130, 106130, 142660; 23670, 66540, 75000 (diverged); 51630, 245110; 51460, 188830; 978210. (*) stopped at 2000000 iterations, with the errors near 1.E-2 (y 8), 1.E-4 (x 32) and 2.E-6 (x 16 w, y 2).
+The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3. Iterations of the converged runs: 1264, 3756; 2004; 7884. (*) stopped at 10000 iterations with the residual ratio between 6.E-6 and 4.E-5, except x 16 w, y 8 (2.E-4) and x 32 w (5.E-4, single precision). The x 32, y 8 run was not made: it starts from the x 32, y 4 result.
 
-*Tstepf* 45×42 at relaxation 0.862/0.556 converges in 5980 iterations: xr 5.316. The report gives 5.4h. Chen and Kim (NASA CR-179204, 1987), with second-order upwind differencing on a 51×41 grid, grid independent within 1 percent, give 5.2h for the standard k–ε model on this step. The measurement is about 7h. *Tstepf* 45×42 at relaxation 0.3/0.2 and 0.1/0.05:
+*Tstepf* 45×42 at relaxation 0.862/0.556 converges in 290 iterations: xr 5.201. The report gives 5.4h. Chen and Kim (NASA CR-179204, 1987), with second-order upwind differencing on a 51×41 grid, grid independent within 1 percent, give 5.2h for the standard k–ε model on this step. The measurement is about 7h. *Tstepf* 45×42 at relaxation 0.3/0.2 and 0.1/0.05:
 
     hybrid factor   flags   xr              iterations
-    0.5             0       5.097  5.100    24860  319960
-    0.5             8       5.382  5.384    16130  227660
-    0.792           0       5.047  5.049    22420  220540
-    0.792           8       5.317  5.320    16580  430970
+    0.5             0       4.987  4.987    2460  10000 (*)
+    0.5             8       5.269  5.269    2400  10000 (*)
+    0.792           0       4.943  4.943    2590  10000 (*)
+    0.792           8       5.201  5.201    2540  10000 (*)
 
-*Tstepf* refined, relaxation 0.3/0.2: 89×83 converges in 15290 iterations, xr 5.635; 177×165 was stopped at 2000000 with the errors near 3.E-3, xr 5.774; 353×329 diverged at 92170 and 705×657 at 62760.
+(*) the residual ratio is 1.0–1.5E-5. The relaxation does not change xr.
+
+*Tstepf* refined, relaxation 0.3/0.2: 89×83 converges in 6904 iterations, xr 5.606; 177×165 and 353×329 stop at 10000 with residual ratios 7.E-5 and 4.E-4, xr 5.735 and 6.090; 705×657 stops at 5.E-4 with no reattachment found.
 
 ### Turbulent bend (check case)
 
@@ -246,14 +248,16 @@ On 351×21×11 the hybrid factor 0.25 converges in 7570 iterations: dp 0.0789, d
 
 ### Tolerance, base grids
 
-    TOL      bend dp  iterations   tbend dp  iterations   lstep xr  iterations   tstep xr  iterations
-    1.E-3    0.3806      220       0.0858       200        8.593      1480         4.260       930
-    1.E-4    0.3830      520       0.0828       620        8.222      2640         4.336      2010
-    1.E-5    0.3828     3370       0.0827      2430        8.188      3940         4.353     13520
-    1.E-6    0.3830  1539580       0.0829     27490        8.186     12090
-    1.E-7    not reached; bend stopped at 1785090, tbend at 1388350, lstep and tstep at 2000000
+TOL is the sum of the changes for the bends (*cns3d*) and the largest residual ratio for the steps (*ns2d*); the steps run in single precision at TOL 1.E-5 and above, double below.
 
-Over the same TOL ur, w and the profile RMS of *bend* and *tbend* change by at most 0.001. At the end of the 1.E-7 runs the printed changes were between 5.E-8 and 7.E-7; there lstep gives 8.185 and tstep 4.381. The 153×129×65 bend result, restarted in double precision at TOL 1.E-7, converges in 5920 more iterations: dp 0.3918, db 0.2385, ur 0.399, w 0.310, the six profiles within 0.0005 of the TOL 1.E-5 result.
+    TOL      bend dp  iterations   tbend dp  iterations   lstep xr  iterations   tstep xr  iterations
+    1.E-3    0.3806      220       0.0858       200        8.718      1180         4.303       430
+    1.E-4    0.3830      520       0.0828       620        8.186      2410         4.301       540
+    1.E-5    0.3828     3370       0.0827      2430        8.132      3560         4.302       610
+    1.E-6    0.3830  1539580       0.0829     27490        8.127      4700         4.302       760
+    1.E-7    not reached by the bends: bend stopped at 1785090, tbend at 1388350; lstep 8.126 in 5870, tstep 4.302 in 870
+
+Over the same TOL ur, w and the profile RMS of *bend* and *tbend* change by at most 0.001. The 153×129×65 bend result, restarted in double precision at TOL 1.E-7, converges in 5920 more iterations: dp 0.3918, db 0.2385, ur 0.399, w 0.310, the six profiles within 0.0005 of the TOL 1.E-5 result.
 
 ## EXAMPLES
 
@@ -298,6 +302,10 @@ fig7.svg, fig10.svg, fig19.svg, step.svg (*fig.py*), on a white background.
 
 Under a CUDA MPS server a fatal error in one run stopped all the runs on that server.
 
-With y refined 8 times the turbulent steps do not converge: *tstep* 353×337 and *tstepf* 353×329 and 705×657 diverge, *tstep* 705×337 and 690×309 w stop with errors near 1.E-2.
+In *ns2d* k and ε are solved on the finest grid only, so turbulent runs gain less from multigrid than laminar ones: most refined turbulent steps stop at 10000 iterations a few times above TOL. *Tstepf* refined in y, where the first node lies below y+ 5, stops far above TOL.
+
+*Lstep* 133×133 at relaxation 0.3 stops with the residual ratio near 9.E-4, while relaxation 0.5 converges.
+
+At TOL 1.E-5 *ns2d* stops too early on fine grids: on 1409×177 xr is 10.754 at 1.E-5 and 10.679 at 1.E-6, and umin of the 241×241 cavity −0.3201 and −0.3242.
 
 The Humphrey data of ../../redraw/fig19* hold stray points, at 0 deg (0.43, 1.23) and at 60 deg, z/d 0 four points near U/U_ref 0; the RMS values include them.
