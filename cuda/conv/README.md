@@ -159,8 +159,8 @@ b marks the report's nonorthogonal grid (*cavityb*). Its digitized boundary node
     133×127       0.3/0.2     7604        5.444
     177×169       0.5/0.3     5560        5.542
     177×169       0.3/0.2    10000 (*)    5.542
-    88×81 w       0.5/0.3     1488        5.178
-    174×157 w     0.7/0.7     2132        5.764
+    88×81 w       0.5/0.3     1496        5.178
+    174×157 w     0.7/0.7     2120        5.764
 
 (*) the residual ratio is 7.E-6. A fit to the 89, 133 and 177 grids at relaxation 0.5/0.3 gives p = 1.58, xr∞ = 5.71.
 
@@ -172,10 +172,10 @@ x and y refined apart, relaxation 0.7/0.7:
     x 8     5.286                     5.678        5.696
     x 16    5.290                     5.729        5.769
     x 32                              5.742        5.794 (*)
-    x 16 w  5.433 (*)    5.508        5.803 (*)    6.102 (*)
-    x 32 w                            5.734 (*)
+    x 16 w  5.419        5.509        5.805        6.123
+    x 32 w                            5.793
 
-The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3. Iterations: 2748; 360, 728, 2416; 572, 2436, 8060; 1524, 2512, 8000; 4632; 7752 (x 16 w, y 2). (*) stopped at 10000 iterations with the residual ratio 6.E-6 (x 32, y 8, single precision), 1.E-4 (x 16 w, y 1), 1.2E-6 (x 16 w, y 4), 8.E-4 (x 16 w, y 8) and 5.E-4 (x 32 w, single precision). The x 32, y 8 run starts from the x 32, y 4 result interpolated. At relaxation 0.3/0.2 the refined runs stopped at 10000 a few times above TOL; the relaxation changes the iterations, not the result (*tstepf* below).
+The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3. Iterations: 2748; 360, 728, 2416; 572, 2436, 8060; 1524, 2512, 8000; 4632; 1504, 1860, 2276, 7348; 5940. (*) stopped at 10000 iterations with the residual ratio 6.E-6 (single precision). The x 32 runs are single precision. The x 32, y 8 run starts from the x 32, y 4 result interpolated. At relaxation 0.3/0.2 the refined runs stopped at 10000 a few times above TOL; the relaxation changes the iterations, not the result (*tstepf* below).
 
 *Tstepf* 45×42 at relaxation 0.862/0.556 converges in 290 iterations: xr 5.201. The report gives 5.4h. Chen and Kim (NASA CR-179204, 1987), with second-order upwind differencing on a 51×41 grid, grid independent within 1 percent, give 5.2h for the standard k–ε model on this step. The measurement is about 7h. *Tstepf* 45×42 at relaxation 0.3/0.2 and 0.1/0.05:
 
@@ -302,7 +302,7 @@ fig7.svg, fig10.svg, fig19.svg, step.svg (*fig.py*), on a white background.
 
 Under a CUDA MPS server a fatal error in one run stopped all the runs on that server.
 
-In *ns2d* k and ε are solved on the finest grid only. At relaxation 0.3/0.2 the turbulent steps converge slowly, held back by k in the shear layer behind the step corner; solving k and ε on the coarse grids as well, or more inner sweeps, does not change that, relaxation 0.7/0.7 does. The *tstepw* grids refined 16 and 32 times in x (690 and 1379 points) coarsen only in y and stop above TOL. *Tstepf* 705×657, where the first node lies below y+ 5, diverges.
+In *ns2d* k and ε are solved on the finest grid only. At relaxation 0.3/0.2 the turbulent steps converge slowly, held back by k in the shear layer behind the step corner; solving k and ε on the coarse grids as well, or more inner sweeps, does not change that, relaxation 0.7/0.7 does. *Tstepf* 705×657, where the first node lies below y+ 5, diverges.
 
 *Lstep* 133×133 at relaxation 0.3 stops with the residual ratio near 9.E-4, while relaxation 0.5 converges.
 
