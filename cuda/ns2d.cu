@@ -487,7 +487,7 @@ __global__ void k_rcvel(Box B) {
   int II = i + 1, JJ = j + 1;
   R PE = (A(P, II, j) + A(P, II, JJ)) * 0.5, PW = (A(P, i, j) + A(P, i, JJ)) * 0.5;
   R PN = (A(P, i, JJ) + A(P, II, JJ)) * 0.5, PS = (A(P, i, j) + A(P, II, j)) * 0.5;
-  R a = PE - PW, e = PN - PS, du = A(DU, i, j);
+  R a = PE - PW, e = PN - PS, du = (R)0.2 * A(DU, i, j);
   A(UT, i, j) = A(U, i, j) + du * (a * A(CX, i, j) + e * A(EX, i, j));
   A(VT, i, j) = A(V, i, j) + du * (a * A(CY, i, j) + e * A(EY, i, j));
 }
@@ -496,8 +496,8 @@ __global__ void k_rcsrc(Box B) {
   if (A(MCF, i, j) >= 2)
     return;
   R p = A(P, i, j);
-  A(SU, i, j) -= A(AE, i, j) * (p - A(P, i + 1, j)) + A(AW, i, j) * (p - A(P, i - 1, j)) +
-                 A(AN, i, j) * (p - A(P, i, j + 1)) + A(AS, i, j) * (p - A(P, i, j - 1));
+  A(SU, i, j) -= (R)0.2 * (A(AE, i, j) * (p - A(P, i + 1, j)) + A(AW, i, j) * (p - A(P, i - 1, j)) +
+                           A(AN, i, j) * (p - A(P, i, j + 1)) + A(AS, i, j) * (p - A(P, i, j - 1)));
 }
 __global__ void k_pcoef(Box B) {
   DECODE(B);
@@ -534,9 +534,9 @@ __global__ void k_pdiag(Box B) {
     A(SU, i, j) = 0;
   }
 }
-__global__ void k_pmean(Box B, R *flow) {
+__global__ void k_pmean(Box B, R *flow, int acc) {
   int c = blockIdx.x;
-  if (c >= NB || !G.act[c])
+  if (c >= NB || !G.act[c] || (!acc && !(G.flg[c] & 16)))
     return;
   int ni = B.i1 - B.i0 + 1, nn = ni * (B.j1 - B.j0 + 1);
   __shared__ double sm[2][512], sn[2][512];
@@ -567,7 +567,7 @@ __global__ void k_pmean(Box B, R *flow) {
     __syncthreads();
   }
   R n = sn[0][0] + sn[1][0], m = n > 0 ? (sm[0][0] + sm[1][0]) / n : 0;
-  if (threadIdx.x == 0 && !(G.flg[c] & 16))
+  if (acc && threadIdx.x == 0 && !(G.flg[c] & 16))
     flow[2 * NB + c] += (sm[0][0] + sm[1][0]) / flow[NB + c];
   for (int t = threadIdx.x; t < nn; t += blockDim.x) {
     int i = B.i0 + t % ni, j = B.j0 + t / ni;
@@ -999,7 +999,7 @@ static void solvep(int tau) {
   Box cells = {2, hLT, 2, hMT};
   pmass(tau);
   RUN(k_pdiag, in);
-  k_pmean<<<hNB, 512, 0, stream>>>(in, d_flow);
+  k_pmean<<<hNB, 512, 0, stream>>>(in, d_flow, 1);
   k_pblock<<<hNB, 512, PBLOCK_SHARED, stream>>>(in, d_wk);
   RUN(k_pblock_set, in, d_wk);
   sweeps(in, PP_, nsweep[0]);
@@ -1041,6 +1041,7 @@ static void resid(int tau, int norm) {
       RUN(k_assemble, in, fv, ie);
   }
   pmass(tau);
+  k_pmean<<<hNB, 512, 0, stream>>>(pin, d_flow, 0);
   RUN(k_mres, pin, norm);
 }
 
