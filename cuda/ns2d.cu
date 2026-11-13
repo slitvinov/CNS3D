@@ -765,7 +765,7 @@ __global__ void k_tau(Box B) {
   A(ZM, i, j) -= A(RM, i, j);
 }
 typedef struct {
-  int DI, NT, L, M, si, sj;
+  int DI, NT, L, M, si, sj, oi, oj;
 } Dim;
 #define AT(s, d, n, i, j) s.a[n##_][(size_t)c * d.NT + (i) - 1 + d.DI * ((j) - 1)]
 __global__ void k_down(S f, Dim df, S g, Dim dc) {
@@ -773,7 +773,9 @@ __global__ void k_down(S f, Dim df, S g, Dim dc) {
   if (tid >= n * NB)
     return;
   int c = tid / n, r = tid % n, I = 1 + r % dc.L, J = 1 + r / dc.L;
-  int i = dc.si * (I - 1) + 1, j = dc.sj * (J - 1) + 1;
+  int li = dc.oi && I == dc.L, lj = dc.oj && J == dc.M;
+  int i = li ? df.L : dc.si * (I - 1) + 1, j = lj ? df.M : dc.sj * (J - 1) + 1;
+  int na = li ? 3 : dc.si, nb = lj ? 3 : dc.sj;
   if (!f.act[c])
     return;
   AT(g, dc, OU, I, J) = AT(g, dc, U, I, J) = AT(f, df, U, i, j);
@@ -783,12 +785,12 @@ __global__ void k_down(S f, Dim df, S g, Dim dc) {
   AT(g, dc, VISE, I, J) = AT(f, df, VISE, i, j);
   if (I >= 2 && J >= 2) {
     R p = 0, m = 0;
-    for (int b = 0; b < dc.sj; b++)
-      for (int a = 0; a < dc.si; a++) {
-        p += AT(f, df, P, i - dc.si + 1 + a, j - dc.sj + 1 + b);
-        m += AT(f, df, RM, i - dc.si + 1 + a, j - dc.sj + 1 + b);
+    for (int b = 0; b < nb; b++)
+      for (int a = 0; a < na; a++) {
+        p += AT(f, df, P, i - na + 1 + a, j - nb + 1 + b);
+        m += AT(f, df, RM, i - na + 1 + a, j - nb + 1 + b);
       }
-    AT(g, dc, OP, I, J) = AT(g, dc, P, I, J) = p / (dc.si * dc.sj);
+    AT(g, dc, OP, I, J) = AT(g, dc, P, I, J) = p / (na * nb);
     AT(g, dc, ZM, I, J) = m;
   }
   if (I >= 2 && I < dc.L && J >= 2 && J < dc.M) {
@@ -818,6 +820,16 @@ __global__ void k_up(S f, Dim df, S g, Dim dc, R w, int turb) {
     int I0 = dc.si == 2 ? (i + 1) / 2 : i, J0 = dc.sj == 2 ? (j + 1) / 2 : j;
     int I1 = I0 + (dc.si == 2 && !(i & 1)), J1 = J0 + (dc.sj == 2 && !(j & 1));
     R wa = I1 == I0 ? (R)1 : (R)0.5, wb = J1 == J0 ? (R)1 : (R)0.5;
+    if (dc.oi && i > df.L - 3) {
+      I0 = dc.L - 1;
+      I1 = dc.L;
+      wa = (R)(df.L - i) / 3;
+    }
+    if (dc.oj && j > df.M - 3) {
+      J0 = dc.M - 1;
+      J1 = dc.M;
+      wb = (R)(df.M - j) / 3;
+    }
 #define DL(q, Q, a, b) (AT(g, dc, q, a, b) - AT(g, dc, Q, a, b))
 #define DV(q, Q, a, b) (a > 1 && a < dc.L && b > 1 && b < dc.M ? DL(q, Q, a, b) : (R)0)
 #define BIL(q, Q)                                                                                  \
@@ -836,6 +848,10 @@ __global__ void k_up(S f, Dim df, S g, Dim dc, R w, int turb) {
     int Kn = dc.si == 1 ? K : (i & 1) ? K + 1 : K - 1;
     int Ln = dc.sj == 1 ? L : (j & 1) ? L + 1 : L - 1;
     R wa = dc.si == 2 ? (R)0.75 : (R)1, wb = dc.sj == 2 ? (R)0.75 : (R)1;
+    if (dc.oi && i > df.L - 3)
+      K = Kn = dc.L;
+    if (dc.oj && j > df.M - 3)
+      L = Ln = dc.M;
     if (Kn < 2 || Kn > dc.L)
       Kn = K;
     if (Ln < 2 || Ln > dc.M)
@@ -1049,7 +1065,7 @@ typedef struct {
   int DI, DJ, NT, L, M, LT, MT, MAXW;
   S hs, *dG;
   R *wk, *flow, *host[NA_];
-  int *dims, blk[4], si, sj;
+  int *dims, blk[4], si, sj, oi, oj;
 } Level;
 #define MAXLV 12
 static Level lv[MAXLV];
@@ -1058,7 +1074,7 @@ static R mgw;
 static void *symp[7];
 
 static Dim dim(int l) {
-  Dim d = {lv[l].DI, lv[l].NT, lv[l].L, lv[l].M, lv[l].si, lv[l].sj};
+  Dim d = {lv[l].DI, lv[l].NT, lv[l].L, lv[l].M, lv[l].si, lv[l].sj, lv[l].oi, lv[l].oj};
   return d;
 }
 static void use(int l) {
@@ -1597,17 +1613,19 @@ static void save(int l) {
   v->dG = (S *)upload(&hs, sizeof(S));
 }
 
-static int ratio(int n, int b0, int b1) {
-  if ((n - 1) % 2 || (n - 1) / 2 + 1 < mgmin)
+static int ratio(int n, int b0, int b1, int *odd) {
+  *odd = (n - 1) % 2;
+  if ((n - 1) / 2 + 1 < mgmin || (b0 && (b0 - 1) % 2) || (b1 && (b1 - 1) % 2) ||
+      (b0 && b1 - b0 < 2)) {
+    *odd = 0;
     return 1;
-  if ((b0 && (b0 - 1) % 2) || (b1 && (b1 - 1) % 2) || (b0 && b1 - b0 < 2))
-    return 1;
+  }
   return 2;
 }
 static int coarsenable(int l) {
   Level *v = &lv[l];
-  lv[l + 1].si = ratio(v->L, v->blk[0], v->blk[1]);
-  lv[l + 1].sj = ratio(v->M, v->blk[2], v->blk[3]);
+  lv[l + 1].si = ratio(v->L, v->blk[0], v->blk[1], &lv[l + 1].oi);
+  lv[l + 1].sj = ratio(v->M, v->blk[2], v->blk[3], &lv[l + 1].oj);
   return lv[l + 1].si * lv[l + 1].sj > 1;
 }
 
@@ -1647,17 +1665,19 @@ static void build(int l) {
       }
     for (I = 1; I <= hL; I++)
       for (J = 1; J <= hM; J++) {
-        i = si * (I - 1) + 1;
-        j = sj * (J - 1) + 1;
+        int li = lv[l].oi && I == hL, lj = lv[l].oj && J == hM;
+        int na = li ? 3 : si, nb = lj ? 3 : sj;
+        i = li ? p->L : si * (I - 1) + 1;
+        j = lj ? p->M : sj * (J - 1) + 1;
         for (q = 0; q < (int)(sizeof inj / sizeof inj[0]); q++)
           g[inj[q]][ID(I, J)] = p->host[inj[q]][po + (i - 1) + p->DI * (j - 1)];
         if (I >= 2 && J >= 2) {
           R s = 0;
           int a, b;
-          for (a = 0; a < si; a++)
-            for (b = 0; b < sj; b++)
-              s += p->host[P_][po + (i - si + a) + p->DI * (j - sj + b)];
-          g[P_][ID(I, J)] = s / (si * sj);
+          for (a = 0; a < na; a++)
+            for (b = 0; b < nb; b++)
+              s += p->host[P_][po + (i - na + a) + p->DI * (j - nb + b)];
+          g[P_][ID(I, J)] = s / (na * nb);
         }
       }
     geom(c, hL, hM);
