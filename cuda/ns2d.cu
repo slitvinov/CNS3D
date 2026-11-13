@@ -67,6 +67,23 @@ enum {
   F1_,
   LP_,
   LQ_,
+  RU_,
+  RV_,
+  RK_,
+  RE_,
+  RM_,
+  ZU_,
+  ZV_,
+  ZK_,
+  ZE_,
+  ZM_,
+  OU_,
+  OV_,
+  OP_,
+  OK_,
+  OE_,
+  UT_,
+  VT_,
   NA_
 };
 
@@ -74,7 +91,7 @@ typedef struct {
   R *a[NA_];
   int *ibc, *jbc, *ity, *nw;
   R *yn, *yn1, *sx, *sy, *anv, *ypl, *tau;
-  R *visc, *flowin, *cfac, *err, *alf, *c1;
+  R *visc, *flowin, *cfac, *err, *alf, *c1, *res;
   int *act, *flg;
 } S;
 __constant__ S G;
@@ -313,6 +330,20 @@ __global__ void k_assemble(Box B, int fv, int ie) {
   if (ie == 1)
     A(DU, i, j) = A(TJO, i, j) * pduv / (P1 - ANAB);
 }
+__device__ void wmaxp(int c, R *a, R v) {
+  unsigned m = __activemask();
+  int c0 = __shfl_sync(m, c, __ffs(m) - 1);
+  int same = __all_sync(m, c == c0);
+  if (same) {
+    for (int o = 16; o > 0; o >>= 1) {
+      R w = __shfl_xor_sync(m, v, o);
+      v = fmax(v, w);
+    }
+    if ((threadIdx.x & 31) == __ffs(m) - 1)
+      atomicMaxD(a, v);
+  } else
+    atomicMaxD(a, v);
+}
 __device__ void wmax(int c, int slot, R v) {
   unsigned m = __activemask();
   int c0 = __shfl_sync(m, c, __ffs(m) - 1);
@@ -398,8 +429,8 @@ __global__ void k_pflux(Box B, int dir) {
   x##n = 0.25 * (A(v, i, j) + A(v, i - 1, j) + A(v, i, j + 1) + A(v, i - 1, j + 1));              \
   x##s = 0.25 * (A(v, i, j) + A(v, i - 1, j) + A(v, i, j - 1) + A(v, i - 1, j - 1))
     SX0(DEN, D);
-    SX0(U, U);
-    SX0(V, V);
+    SX0(UT, U);
+    SX0(VT, V);
     cx = 0.5 * (A(CX, i, j) + A(CX, i - 1, j));
     cy = 0.5 * (A(CY, i, j) + A(CY, i - 1, j));
     ex = 0.5 * (A(EX, i, j) + A(EX, i - 1, j));
@@ -412,8 +443,8 @@ __global__ void k_pflux(Box B, int dir) {
   x##e = 0.25 * (A(v, i, j) + A(v, i, j - 1) + A(v, i + 1, j) + A(v, i + 1, j - 1));              \
   x##w = 0.25 * (A(v, i, j) + A(v, i, j - 1) + A(v, i - 1, j) + A(v, i - 1, j - 1))
     SX1(DEN, D);
-    SX1(U, U);
-    SX1(V, V);
+    SX1(UT, U);
+    SX1(VT, V);
     cx = 0.5 * (A(CX, i, j) + A(CX, i, j - 1));
     cy = 0.5 * (A(CY, i, j) + A(CY, i, j - 1));
     ex = 0.5 * (A(EX, i, j) + A(EX, i, j - 1));
@@ -426,8 +457,8 @@ __global__ void k_pflux(Box B, int dir) {
   x##n = 0.5 * (A(v, i, j) + A(v, i, j + 1));                                                      \
   x##s = 0.5 * (A(v, i, j) + A(v, i, j - 1))
     SX2(DEN, D);
-    SX2(U, U);
-    SX2(V, V);
+    SX2(UT, U);
+    SX2(VT, V);
     cx = A(CX, i, j);
     cy = A(CY, i, j);
     ex = A(EX, i, j);
@@ -443,6 +474,30 @@ __global__ void k_pflux(Box B, int dir) {
     A(SPK, i, j) = val;
   else
     A(SP, i, j) = val;
+}
+__global__ void k_rccopy(Box B) {
+  DECODE(B);
+  A(UT, i, j) = A(U, i, j);
+  A(VT, i, j) = A(V, i, j);
+}
+__global__ void k_rcvel(Box B) {
+  DECODE(B);
+  if (A(MCF, i, j) >= 1)
+    return;
+  int II = i + 1, JJ = j + 1;
+  R PE = (A(P, II, j) + A(P, II, JJ)) * 0.5, PW = (A(P, i, j) + A(P, i, JJ)) * 0.5;
+  R PN = (A(P, i, JJ) + A(P, II, JJ)) * 0.5, PS = (A(P, i, j) + A(P, II, j)) * 0.5;
+  R a = PE - PW, e = PN - PS, du = A(DU, i, j);
+  A(UT, i, j) = A(U, i, j) + du * (a * A(CX, i, j) + e * A(EX, i, j));
+  A(VT, i, j) = A(V, i, j) + du * (a * A(CY, i, j) + e * A(EY, i, j));
+}
+__global__ void k_rcsrc(Box B) {
+  DECODE(B);
+  if (A(MCF, i, j) >= 2)
+    return;
+  R p = A(P, i, j);
+  A(SU, i, j) -= A(AE, i, j) * (p - A(P, i + 1, j)) + A(AW, i, j) * (p - A(P, i - 1, j)) +
+                 A(AN, i, j) * (p - A(P, i, j + 1)) + A(AS, i, j) * (p - A(P, i, j - 1));
 }
 __global__ void k_pcoef(Box B) {
   DECODE(B);
@@ -511,13 +566,13 @@ __global__ void k_pmean(Box B, R *flow) {
       }
     __syncthreads();
   }
-  R m0 = sn[0][0] > 0 ? sm[0][0] / sn[0][0] : 0, m1 = sn[1][0] > 0 ? sm[1][0] / sn[1][0] : 0;
+  R n = sn[0][0] + sn[1][0], m = n > 0 ? (sm[0][0] + sm[1][0]) / n : 0;
   if (threadIdx.x == 0 && !(G.flg[c] & 16))
     flow[2 * NB + c] += (sm[0][0] + sm[1][0]) / flow[NB + c];
   for (int t = threadIdx.x; t < nn; t += blockDim.x) {
     int i = B.i0 + t % ni, j = B.j0 + t / ni;
     if (A(MCF, i, j) < 2)
-      A(SU, i, j) -= ((i + j) & 1) ? m1 : m0;
+      A(SU, i, j) -= m;
   }
 }
 __global__ void k_pblock(Box B, R *wk) {
@@ -583,7 +638,7 @@ __global__ void k_pupdate(Box B) {
   R v = 0;
   if (G.act[c] && A(MCF, i, j) < 2) {
     R *f = field(PP_, c);
-    R p1 = F(i, j) - f[IDX(LT - ((LT + i + j + MT / 2) & 1), MT / 2)];
+    R p1 = F(i, j) - f[IDX(LT, MT / 2)];
     A(P, i, j) += G.alf[c * 8 + 7] * p1;
     v = fabs(p1);
     if (!isfinite(v))
@@ -618,7 +673,7 @@ __global__ void k_viscosity(Box B) {
   R tv = *de <= SMNUM ? G.visc[c] : A(DEN, i, j) * CMU * *dk * *dk / *de + G.visc[c];
   A(VISE, i, j) += ALVIS * (tv - A(VISE, i, j));
 }
-__global__ void k_outflow(R *flow) {
+__global__ void k_outflow(R *flow, int reset) {
   int c = blockIdx.x;
   if (c >= NB || !G.act[c])
     return;
@@ -643,6 +698,10 @@ __global__ void k_outflow(R *flow) {
     __syncthreads();
   }
   if (threadIdx.x == 0) {
+    if (reset) {
+      G.flowin[c] = s1[0];
+      flow[2 * NB + c] = 0;
+    }
     flow[NB + c] = s2[0];
     flow[c] = (s1[0] - G.flowin[c]) / s2[0] - flow[2 * NB + c];
   }
@@ -656,6 +715,136 @@ __global__ void k_outlet(Box B, R *uinc) {
   A(V, I + 1, j) = A(V, I, j);
   A(DK, I + 1, j) = A(DK, I, j);
   A(DE, I + 1, j) = A(DE, I, j);
+}
+
+__global__ void k_resid(Box B, int fv, int rv, int q, int norm) {
+  CELL(B);
+  R res = 0, den = 0;
+  if (G.act[c]) {
+    R *f = field(fv, c);
+    if (A(MCF, i, j) < 1 && A(SP, i, j) > (R)-1e20) {
+      R ae = A(AE, i, j), aw = A(AW, i, j), an = A(AN, i, j), as = A(AS, i, j);
+      R ap = ae + aw + an + as - A(SP, i, j);
+      res = A(SU, i, j) + ae * F(i + 1, j) + aw * F(i - 1, j) + an * F(i, j + 1) +
+            as * F(i, j - 1) - ap * F(i, j);
+      den = fabs(ap * F(i, j));
+    }
+    field(rv, c)[IDX(i, j)] = res;
+  }
+  if (norm) {
+    wmaxp(c, &G.res[c * 16 + 2 * q], isfinite(res) ? fabs(res) : INFINITY);
+    wmaxp(c, &G.res[c * 16 + 2 * q + 1], den);
+  }
+}
+__global__ void k_mres(Box B, int norm) {
+  CELL(B);
+  R res = 0, den = 0;
+  if (G.act[c]) {
+    res = A(MCF, i, j) < 2 ? A(SU, i, j) : 0;
+    A(RM, i, j) = res;
+    R u = A(U, i, j), v = A(V, i, j);
+    den = (fabs(u * A(CX, i, j) + v * A(CY, i, j)) + fabs(u * A(EX, i, j) + v * A(EY, i, j))) *
+          A(TJO, i, j) * A(DEN, i, j);
+  }
+  if (norm) {
+    wmaxp(c, &G.res[c * 16 + 8], isfinite(res) ? fabs(res) : INFINITY);
+    wmaxp(c, &G.res[c * 16 + 9], den);
+  }
+}
+__global__ void k_addtau(Box B, int zv, int lim) {
+  DECODE(B);
+  if (A(MCF, i, j) < lim && (lim == 2 || A(SP, i, j) > (R)-1e20))
+    A(SU, i, j) += field(zv, c)[IDX(i, j)];
+}
+__global__ void k_tau(Box B) {
+  DECODE(B);
+  A(ZU, i, j) -= A(RU, i, j);
+  A(ZV, i, j) -= A(RV, i, j);
+  A(ZK, i, j) -= A(RK, i, j);
+  A(ZE, i, j) -= A(RE, i, j);
+  A(ZM, i, j) -= A(RM, i, j);
+}
+typedef struct {
+  int DI, NT, L, M, si, sj;
+} Dim;
+#define AT(s, d, n, i, j) s.a[n##_][(size_t)c * d.NT + (i) - 1 + d.DI * ((j) - 1)]
+__global__ void k_down(S f, Dim df, S g, Dim dc) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x, n = dc.L * dc.M;
+  if (tid >= n * NB)
+    return;
+  int c = tid / n, r = tid % n, I = 1 + r % dc.L, J = 1 + r / dc.L;
+  int i = dc.si * (I - 1) + 1, j = dc.sj * (J - 1) + 1;
+  if (!f.act[c])
+    return;
+  AT(g, dc, OU, I, J) = AT(g, dc, U, I, J) = AT(f, df, U, i, j);
+  AT(g, dc, OV, I, J) = AT(g, dc, V, I, J) = AT(f, df, V, i, j);
+  AT(g, dc, OK, I, J) = AT(g, dc, DK, I, J) = AT(f, df, DK, i, j);
+  AT(g, dc, OE, I, J) = AT(g, dc, DE, I, J) = AT(f, df, DE, i, j);
+  AT(g, dc, VISE, I, J) = AT(f, df, VISE, i, j);
+  if (I >= 2 && J >= 2) {
+    R p = 0, m = 0;
+    for (int b = 0; b < dc.sj; b++)
+      for (int a = 0; a < dc.si; a++) {
+        p += AT(f, df, P, i - dc.si + 1 + a, j - dc.sj + 1 + b);
+        m += AT(f, df, RM, i - dc.si + 1 + a, j - dc.sj + 1 + b);
+      }
+    AT(g, dc, OP, I, J) = AT(g, dc, P, I, J) = p / (dc.si * dc.sj);
+    AT(g, dc, ZM, I, J) = m;
+  }
+  if (I >= 2 && I < dc.L && J >= 2 && J < dc.M) {
+    R su = 0, sv = 0, sk = 0, se = 0;
+    for (int b = 1 - dc.sj; b < dc.sj; b++)
+      for (int a = 1 - dc.si; a < dc.si; a++) {
+        R w = (a ? (R)0.5 : (R)1) * (b ? (R)0.5 : (R)1);
+        su += w * AT(f, df, RU, i + a, j + b);
+        sv += w * AT(f, df, RV, i + a, j + b);
+        sk += w * AT(f, df, RK, i + a, j + b);
+        se += w * AT(f, df, RE, i + a, j + b);
+      }
+    AT(g, dc, ZU, I, J) = su;
+    AT(g, dc, ZV, I, J) = sv;
+    AT(g, dc, ZK, I, J) = sk;
+    AT(g, dc, ZE, I, J) = se;
+  }
+}
+__global__ void k_up(S f, Dim df, S g, Dim dc, R w, int turb) {
+  int tid = blockIdx.x * blockDim.x + threadIdx.x, n = df.L * df.M;
+  if (tid >= n * NB)
+    return;
+  int c = tid / n, r = tid % n, i = 1 + r % df.L, j = 1 + r / df.L;
+  if (!f.act[c])
+    return;
+  if (i >= 2 && i < df.L && j >= 2 && j < df.M && AT(f, df, MCF, i, j) < 1) {
+    int I0 = dc.si == 2 ? (i + 1) / 2 : i, J0 = dc.sj == 2 ? (j + 1) / 2 : j;
+    int I1 = I0 + (dc.si == 2 && !(i & 1)), J1 = J0 + (dc.sj == 2 && !(j & 1));
+    R wa = I1 == I0 ? (R)1 : (R)0.5, wb = J1 == J0 ? (R)1 : (R)0.5;
+#define DL(q, Q, a, b) (AT(g, dc, q, a, b) - AT(g, dc, Q, a, b))
+#define DV(q, Q, a, b) (a > 1 && a < dc.L && b > 1 && b < dc.M ? DL(q, Q, a, b) : (R)0)
+#define BIL(q, Q)                                                                                  \
+  (wa * wb * DV(q, Q, I0, J0) + (1 - wa) * wb * DV(q, Q, I1, J0) +                                 \
+   wa * (1 - wb) * DV(q, Q, I0, J1) + (1 - wa) * (1 - wb) * DV(q, Q, I1, J1))
+    AT(f, df, U, i, j) += w * BIL(U, OU);
+    AT(f, df, V, i, j) += w * BIL(V, OV);
+    if (turb) {
+      R k0 = AT(f, df, DK, i, j), e0 = AT(f, df, DE, i, j);
+      AT(f, df, DK, i, j) = fmax(k0 + w * BIL(DK, OK), (R)0.5 * k0);
+      AT(f, df, DE, i, j) = fmax(e0 + w * BIL(DE, OE), (R)0.5 * e0);
+    }
+  }
+  if (i >= 2 && j >= 2 && AT(f, df, MCF, i, j) < 2) {
+    int K = dc.si == 2 ? (i + 2) / 2 : i, L = dc.sj == 2 ? (j + 2) / 2 : j;
+    int Kn = dc.si == 1 ? K : (i & 1) ? K + 1 : K - 1;
+    int Ln = dc.sj == 1 ? L : (j & 1) ? L + 1 : L - 1;
+    R wa = dc.si == 2 ? (R)0.75 : (R)1, wb = dc.sj == 2 ? (R)0.75 : (R)1;
+    if (Kn < 2 || Kn > dc.L)
+      Kn = K;
+    if (Ln < 2 || Ln > dc.M)
+      Ln = L;
+#define DP(a, b) (AT(g, dc, MCF, a, b) < 2 ? DL(P, OP, a, b) : d00)
+    R d00 = DL(P, OP, K, L), d10 = DP(Kn, L), d01 = DP(K, Ln), d11 = DP(Kn, Ln);
+    AT(f, df, P, i, j) +=
+        w * (wa * wb * d00 + (1 - wa) * wb * d10 + wa * (1 - wb) * d01 + (1 - wa) * (1 - wb) * d11);
+  }
 }
 
 static const char *argv0 = "ns2d";
@@ -729,7 +918,7 @@ typedef struct {
 } Case;
 
 static int hDI, hDJ, hNT, hNB, hMAXW;
-static int hL, hM, hN, hLT, hMT, hIG;
+static int hL, hM, hN, hLT, hMT, hIG, curl;
 static Case *cases;
 static S hs;
 static R *d_wk, *d_flow;
@@ -762,7 +951,7 @@ static void sweeps(Box b, int fv, int nsw) {
   }
 }
 
-static void solveq(int ie, int fv) {
+static void prep(int ie, int fv) {
   Box in = {2, hLT, 2, hMT};
   Box all = {1, hL, 1, hM};
   Box outlet = {hLT, hLT, 2, hMT};
@@ -781,19 +970,34 @@ static void solveq(int ie, int fv) {
   if (hIG == 2)
     k_wall<<<nblk((long)hNB * hMAXW), 256, 0, stream>>>(ie, fv);
   RUN(k_outlet_links, outlet);
+}
+static const int zof[7] = {0, ZU_, ZV_, 0, 0, ZK_, ZE_}, rof[7] = {0, RU_, RV_, 0, 0, RK_, RE_};
+static void solveq(int ie, int fv, int tau) {
+  Box in = {2, hLT, 2, hMT};
+  prep(ie, fv);
+  if (tau)
+    RUN(k_addtau, in, zof[ie], 1);
   RUN(k_assemble, in, fv, ie);
   sweeps(in, fv, nsweep[ie]);
   RUN(k_err, in, fv, ie);
 }
-
-static void solvep(void) {
-  Box in = {2, hL, 2, hM};
-  Box cells = {2, hLT, 2, hMT};
+static void pmass(int tau) {
+  Box in = {2, hL, 2, hM}, all = {1, hL, 1, hM}, cells = {2, hLT, 2, hMT};
+  RUN(k_rccopy, all);
+  RUN(k_rcvel, cells);
   RUN(k_pclear, in);
   RUN(k_pflux, in, 0);
   RUN(k_pflux, in, 1);
   RUN(k_pflux, in, 2);
   RUN(k_pcoef, in);
+  RUN(k_rcsrc, in);
+  if (tau)
+    RUN(k_addtau, in, ZM_, 2);
+}
+static void solvep(int tau) {
+  Box in = {2, hL, 2, hM};
+  Box cells = {2, hLT, 2, hMT};
+  pmass(tau);
   RUN(k_pdiag, in);
   k_pmean<<<hNB, 512, 0, stream>>>(in, d_flow);
   k_pblock<<<hNB, 512, PBLOCK_SHARED, stream>>>(in, d_wk);
@@ -803,21 +1007,106 @@ static void solvep(void) {
   RUN(k_correct, cells);
 }
 
-static void iterate(void) {
+static void iterate(int tau) {
   Box outlet = {1, 1, 2, hMT};
   Box all = {1, hL, 1, hM};
-  k_outflow<<<hNB, 256, 0, stream>>>(d_flow);
+  k_outflow<<<hNB, 256, 0, stream>>>(d_flow, 0);
   RUN(k_outlet, outlet, d_flow);
-  solveq(1, U_);
-  solveq(2, V_);
-  if (hIG == 2) {
-    solveq(5, DK_);
+  solveq(1, U_, tau);
+  solveq(2, V_, tau);
+  if (hIG == 2 && !curl) {
+    solveq(5, DK_, tau);
     RUN(k_positive, all);
-    solveq(6, DE_);
+    solveq(6, DE_, tau);
   }
-  solvep();
-  if (hIG == 2)
+  solvep(tau);
+  if (hIG == 2 && !curl)
     RUN(k_viscosity, all);
+}
+
+static void resid(int tau, int norm) {
+  Box in = {2, hLT, 2, hMT}, pin = {2, hL, 2, hM}, outlet = {1, 1, 2, hMT};
+  int ie;
+  k_outflow<<<hNB, 256, 0, stream>>>(d_flow, 0);
+  RUN(k_outlet, outlet, d_flow);
+  for (ie = 1; ie <= 6; ie++) {
+    int fv = ie == 1 ? U_ : ie == 2 ? V_ : ie == 5 ? DK_ : DE_;
+    if (ie == 3 || ie == 4 || (ie >= 5 && (hIG != 2 || curl)))
+      continue;
+    prep(ie, fv);
+    if (tau)
+      RUN(k_addtau, in, zof[ie], 1);
+    RUN(k_resid, in, fv, rof[ie], ie == 1 ? 0 : ie == 2 ? 1 : ie == 5 ? 2 : 3, norm);
+    if (ie == 1)
+      RUN(k_assemble, in, fv, ie);
+  }
+  pmass(tau);
+  RUN(k_mres, pin, norm);
+}
+
+typedef struct {
+  int DI, DJ, NT, L, M, LT, MT, MAXW;
+  S hs, *dG;
+  R *wk, *flow, *host[NA_];
+  int *dims, blk[4], si, sj;
+} Level;
+#define MAXLV 12
+static Level lv[MAXLV];
+static int nlv = 1, nu1, nu2, nuc, mgmin;
+static R mgw;
+static void *symp[7];
+
+static Dim dim(int l) {
+  Dim d = {lv[l].DI, lv[l].NT, lv[l].L, lv[l].M, lv[l].si, lv[l].sj};
+  return d;
+}
+static void use(int l) {
+  Level *v = &lv[l];
+  int k;
+  curl = l;
+  hDI = v->DI;
+  hDJ = v->DJ;
+  hNT = v->NT;
+  hL = v->L;
+  hM = v->M;
+  hLT = v->LT;
+  hMT = v->MT;
+  hMAXW = v->MAXW;
+  hs = v->hs;
+  d_wk = v->wk;
+  d_flow = v->flow;
+  for (k = 0; k < 6; k++)
+    CK(cudaMemcpyAsync(symp[k], v->dims + k, sizeof(int), cudaMemcpyDeviceToDevice, stream));
+  CK(cudaMemcpyAsync(symp[6], v->dG, sizeof(S), cudaMemcpyDeviceToDevice, stream));
+}
+static void cycle(int l) {
+  int k;
+  use(l);
+  if (l == nlv - 1) {
+    for (k = 0; k < nuc; k++)
+      iterate(l > 0);
+    return;
+  }
+  for (k = 0; k < nu1; k++)
+    iterate(l > 0);
+  resid(l > 0, 0);
+  Dim df = dim(l), dc = dim(l + 1);
+  k_down<<<nblk((long)dc.L * dc.M * hNB), 256, 0, stream>>>(lv[l].hs, df, lv[l + 1].hs, dc);
+  use(l + 1);
+  k_outflow<<<hNB, 256, 0, stream>>>(d_flow, 1);
+  resid(0, 0);
+  {
+    Box all = {1, hL, 1, hM};
+    RUN(k_tau, all);
+  }
+  cycle(l + 1);
+  use(l);
+  k_up<<<nblk((long)df.L * df.M * hNB), 256, 0, stream>>>(lv[l].hs, df, lv[l + 1].hs, dc, mgw, 0);
+  for (k = 0; k < nu2; k++) {
+    if (l == 0 && k == nu2 - 1)
+      CK(cudaMemsetAsync(hs.err, 0, sizeof(R) * hNB * 8, stream));
+    iterate(l > 0);
+  }
 }
 
 #define ID(i, j) ((i) - 1 + hDI * ((j) - 1))
@@ -960,18 +1249,16 @@ static void read_control(Case *k) {
     die("%s: bad Reynolds number", p);
 }
 
+static void geom(int c, int L, int M);
 static void setup(int c) {
   Case *K = &cases[c];
   char s[512], p[1100];
   FILE *ff;
-  int i, j, k, q, n, NN = hNT, L, M, N, LO, MO, LT, MT, wdist;
-  float visc, alvis, cmu = 0.09f, smnum = 1.E-30f, flowin = 0.0f;
+  int i, j, k, q, NN = hNT, L, M, N, LO, MO;
+  float visc;
   float *U = g[U_], *V = g[V_], *DK = g[DK_], *DE = g[DE_], *VISE = g[VISE_], *DEN = g[DEN_];
-  float *cell[5] = {g[CX_], g[CY_], g[EX_], g[EY_], g[TJO_]};
-  float *CX = g[CX_], *CY = g[CY_], *EX = g[EX_], *EY = g[EY_];
   read_control(K);
   visc = K->visc;
-  alvis = K->alr[6];
   snprintf(p, sizeof p, "%s/field", K->dir);
   ff = eopen(p, "r");
   egets(s, sizeof s, ff, p);
@@ -989,8 +1276,6 @@ static void setup(int c) {
   K->n = N;
   LO = L + 1;
   MO = M + 1;
-  LT = L - 1;
-  MT = M - 1;
   if (L < 3 || M < 3 || N < 2)
     die("%s: grid %dx%dx%d is too small", p, L, M, N);
   if (LO > hDI || MO > hDJ)
@@ -1001,8 +1286,6 @@ static void setup(int c) {
     memset(vm[q], 0, sizeof(float) * NN);
   memset(MC, 0, sizeof(int) * NN);
   K->z = (float *)emalloc(sizeof(float) * (size_t)N * L * M);
-  wl = NULL;
-  wcap = 0;
   X = g[X_];
   Y = g[Y_];
   for (i = 1; i <= LO; i++)
@@ -1030,7 +1313,23 @@ static void setup(int c) {
         DE[o] = fx(s, 95, 11);
       }
   fclose(ff);
+  geom(c, L, M);
+}
 
+static void geom(int c, int L, int M) {
+  Case *K = &cases[c];
+  int i, j, q, n, NN = hNT, LO = L + 1, MO = M + 1, LT = L - 1, MT = M - 1, wdist;
+  float visc = K->visc, alvis = K->alr[6], cmu = 0.09f, smnum = 1.E-30f, flowin = 0.0f;
+  float *U = g[U_], *V = g[V_], *DK = g[DK_], *DE = g[DE_], *VISE = g[VISE_], *DEN = g[DEN_];
+  float *cell[5] = {g[CX_], g[CY_], g[EX_], g[EY_], g[TJO_]};
+  float *CX = g[CX_], *CY = g[CY_], *EX = g[EX_], *EY = g[EY_];
+  X = g[X_];
+  Y = g[Y_];
+  wl = NULL;
+  wcap = 0;
+  for (q = 0; q < 5; q++)
+    memset(vm[q], 0, sizeof(float) * NN);
+  memset(MC, 0, sizeof(int) * NN);
   for (i = 1; i <= LO; i++)
     for (j = 1; j <= MO; j++) {
       int m = (j == 1 || (j == M && !(K->flags & 16))) ? 1 : 0;
@@ -1208,9 +1507,9 @@ static void *upload(const void *h, size_t bytes) {
     CK(cudaMemcpyToSymbol(sym, &t_, sizeof t_));                                                   \
   } while (0)
 
+static void pack_walls(void);
 static void setup_all(void) {
-  size_t nw_;
-  int c, q, n;
+  int c, q;
   for (q = 0; q < NSTORED; q++) {
     host[stored[q]] = ral((size_t)hNB * hNT);
     g[stored[q]] = fal(hNT);
@@ -1227,6 +1526,24 @@ static void setup_all(void) {
     if (k->ig != k0->ig || k->nlimt != k0->nlimt || k->nswp != k0->nswp)
       die("%s: model, iteration limit or sweeps differ from %s", k->dir, k0->dir);
   }
+  hL = cases[0].l;
+  hM = cases[0].m;
+  hN = cases[0].n;
+  hLT = hL - 1;
+  hMT = hM - 1;
+  hIG = cases[0].ig;
+  nsweep[0] = cases[0].nswp;
+  nsweep[1] = nsweep[2] = 7;
+  nsweep[5] = nsweep[6] = 5;
+  sigma[1] = 1.0f;
+  sigma[5] = 1.0f;
+  sigma[6] = 1.3f;
+  pack_walls();
+}
+
+static void pack_walls(void) {
+  size_t nw_;
+  int c, n;
   hMAXW = 1;
   for (c = 0; c < hNB; c++)
     if (cases[c].nwall > hMAXW)
@@ -1257,19 +1574,98 @@ static void setup_all(void) {
     free(k->walls);
     k->walls = NULL;
   }
-  hL = cases[0].l;
-  hM = cases[0].m;
-  hN = cases[0].n;
+}
+
+static void save(int l) {
+  Level *v = &lv[l];
+  int d[6] = {hDI, hDJ, hNT, hMAXW, hLT, hMT}, q;
+  v->DI = hDI;
+  v->DJ = hDJ;
+  v->NT = hNT;
+  v->L = hL;
+  v->M = hM;
+  v->LT = hLT;
+  v->MT = hMT;
+  v->MAXW = hMAXW;
+  v->hs = hs;
+  v->wk = d_wk;
+  v->flow = d_flow;
+  for (q = 0; q < NA_; q++)
+    v->host[q] = host[q];
+  v->dims = (int *)upload(d, sizeof d);
+  v->dG = (S *)upload(&hs, sizeof(S));
+}
+
+static int ratio(int n, int b0, int b1) {
+  if ((n - 1) % 2 || (n - 1) / 2 + 1 < mgmin)
+    return 1;
+  if ((b0 && (b0 - 1) % 2) || (b1 && (b1 - 1) % 2) || (b0 && b1 - b0 < 2))
+    return 1;
+  return 2;
+}
+static int coarsenable(int l) {
+  Level *v = &lv[l];
+  lv[l + 1].si = ratio(v->L, v->blk[0], v->blk[1]);
+  lv[l + 1].sj = ratio(v->M, v->blk[2], v->blk[3]);
+  return lv[l + 1].si * lv[l + 1].sj > 1;
+}
+
+static void upload_all(void);
+static void build(int l) {
+  Level *p = &lv[l - 1];
+  int c, q, i, j, I, J;
+  static const int inj[] = {X_, Y_, U_, V_, DK_, DE_, TM_};
+  int si = lv[l].si, sj = lv[l].sj;
+  for (q = 0; q < 4; q++) {
+    int r = q < 2 ? si : sj;
+    lv[l].blk[q] = p->blk[q] ? (p->blk[q] - 1) / r + 1 : 0;
+  }
+  hL = (p->L - 1) / si + 1;
+  hM = (p->M - 1) / sj + 1;
   hLT = hL - 1;
   hMT = hM - 1;
-  hIG = cases[0].ig;
-  nsweep[0] = cases[0].nswp;
-  nsweep[1] = nsweep[2] = 7;
-  nsweep[5] = nsweep[6] = 5;
-  sigma[1] = 1.0f;
-  sigma[5] = 1.0f;
-  sigma[6] = 1.3f;
+  hDI = hL + 1;
+  hDJ = hM + 1;
+  hNT = hDI * hDJ;
+  for (q = 0; q < NA_; q++)
+    host[q] = NULL;
+  for (q = 0; q < NSTORED; q++)
+    host[stored[q]] = ral((size_t)hNB * hNT);
+  L1 = lv[l].blk[0];
+  L2 = lv[l].blk[1];
+  M1 = lv[l].blk[2];
+  M2 = lv[l].blk[3];
+  for (c = 0; c < hNB; c++) {
+    size_t po = (size_t)c * p->NT;
+    for (q = 0; q < NSTORED; q++)
+      memset(g[stored[q]], 0, sizeof(float) * hNT);
+    for (I = 1; I <= hL + 1; I++)
+      for (J = 1; J <= hM + 1; J++) {
+        g[DEN_][ID(I, J)] = 1.0f;
+        g[VISE_][ID(I, J)] = cases[c].visc;
+      }
+    for (I = 1; I <= hL; I++)
+      for (J = 1; J <= hM; J++) {
+        i = si * (I - 1) + 1;
+        j = sj * (J - 1) + 1;
+        for (q = 0; q < (int)(sizeof inj / sizeof inj[0]); q++)
+          g[inj[q]][ID(I, J)] = p->host[inj[q]][po + (i - 1) + p->DI * (j - 1)];
+        if (I >= 2 && J >= 2) {
+          R s = 0;
+          int a, b;
+          for (a = 0; a < si; a++)
+            for (b = 0; b < sj; b++)
+              s += p->host[P_][po + (i - si + a) + p->DI * (j - sj + b)];
+          g[P_][ID(I, J)] = s / (si * sj);
+        }
+      }
+    geom(c, hL, hM);
+  }
+  pack_walls();
+  upload_all();
+  save(l);
 }
+
 
 static void upload_all(void) {
   size_t nw_ = (size_t)hNB * hMAXW, nf = sizeof(R) * hNB * hNT;
@@ -1321,6 +1717,7 @@ static void upload_all(void) {
   hs.c1 = (R *)upload(c1, sizeof(R) * hNB);
   hs.act = (int *)upload(act, sizeof(int) * hNB);
   hs.err = (R *)dalloc(sizeof(R) * hNB * 8);
+  hs.res = (R *)dalloc(sizeof(R) * hNB * 16);
   d_wk = (R *)dalloc(sizeof(R) * hNB * hDI);
   CK(cudaFuncSetAttribute(k_pblock, cudaFuncAttributeMaxDynamicSharedMemorySize, PBLOCK_SHARED));
   d_flow = (R *)dalloc(sizeof(R) * 3 * hNB);
@@ -1357,30 +1754,44 @@ enum { RUNNING, CONVERGED, DIVERGED };
 static void run(int nlimt, R erext, int *iters, int *state) {
   cudaGraph_t graph;
   cudaGraphExec_t exec;
-  R *err = ral((size_t)hNB * 8);
+  R *err = ral((size_t)hNB * 8), *res = ral((size_t)hNB * 16);
+  int k;
   int c, it, left = hNB, verb = getenv("VERB") != NULL, *act = ial(hNB);
   for (c = 0; c < hNB; c++)
     act[c] = 1;
-  CK(cudaStreamCreate(&stream));
   CK(cudaStreamBeginCapture(stream, cudaStreamCaptureModeThreadLocal));
-  iterate();
+  if (nlv > 1)
+    cycle(0);
+  else
+    for (k = 0; k < 10; k++) {
+      if (k == 9)
+        CK(cudaMemsetAsync(hs.err, 0, sizeof(R) * hNB * 8, stream));
+      iterate(0);
+    }
+  CK(cudaMemsetAsync(hs.res, 0, sizeof(R) * hNB * 16, stream));
+  resid(0, 1);
   CK(cudaStreamEndCapture(stream, &graph));
   CK(cudaGraphInstantiate(&exec, graph, 0));
-  for (it = 1; it <= nlimt && left > 0; it++) {
+  int per = nlv > 1 ? nu1 + nu2 : 10, nc = (nlimt + per - 1) / per;
+  for (it = 1; it <= nc && left > 0; it++) {
     int changed = 0;
-    CK(cudaMemsetAsync(hs.err, 0, sizeof(R) * hNB * 8, stream));
+    CK(cudaMemsetAsync(lv[0].hs.err, 0, sizeof(R) * hNB * 8, stream));
     CK(cudaGraphLaunch(exec, stream));
-    if (it % 10 && it != nlimt)
-      continue;
-    CK(cudaMemcpyAsync(err, hs.err, sizeof(R) * hNB * 8, cudaMemcpyDeviceToHost, stream));
+    CK(cudaMemcpyAsync(err, lv[0].hs.err, sizeof(R) * hNB * 8, cudaMemcpyDeviceToHost, stream));
+    CK(cudaMemcpyAsync(res, lv[0].hs.res, sizeof(R) * hNB * 16, cudaMemcpyDeviceToHost, stream));
     CK(cudaStreamSynchronize(stream));
     for (c = 0; c < hNB; c++)
       if (act[c]) {
-        R *e = &err[c * 8], em = e[0] + e[1] + e[2] + e[5] + e[6];
-        iters[c] = it;
+        R *e = &err[c * 8], em = e[0] + e[1] + e[2] + e[5] + e[6], rm = 0, *r = &res[c * 16];
+        for (k = 0; k < 5; k++) {
+          R q = r[2 * k + 1] > 0 ? r[2 * k] / r[2 * k + 1] : r[2 * k] > 0 ? INFINITY : 0;
+          if (!(q <= rm))
+            rm = q;
+        }
+        iters[c] = it * per;
         if (!isfinite((double)em) || (it >= 20 && em > 1e3))
           state[c] = DIVERGED;
-        else if (em <= erext)
+        else if (rm <= erext)
           state[c] = CONVERGED;
         if (state[c]) {
           act[c] = 0;
@@ -1388,11 +1799,12 @@ static void run(int nlimt, R erext, int *iters, int *state) {
           changed = 1;
         }
         if (verb && c == 0)
-          fprintf(stderr, "%d %g %g %g %g %g\n", it, (double)e[1], (double)e[2], (double)e[5],
-                  (double)e[6], (double)e[0]);
+          fprintf(stderr, "%d %g %g %g %g %g %g\n", it * per, (double)e[1], (double)e[2],
+                  (double)e[5], (double)e[6], (double)e[0], (double)rm);
       }
     if (changed)
-      CK(cudaMemcpy(hs.act, act, sizeof(int) * hNB, cudaMemcpyHostToDevice));
+      for (int l = 0; l < nlv; l++)
+        CK(cudaMemcpy(lv[l].hs.act, act, sizeof(int) * hNB, cudaMemcpyHostToDevice));
   }
   CK(cudaDeviceSynchronize());
   CK(cudaGraphExecDestroy(exec));
@@ -1499,6 +1911,42 @@ int main(int argc, char **argv) {
   if (times)
     fprintf(stderr, "setup %.2f s\n", tnow() - t0);
   upload_all();
+  save(0);
+  for (c = 0; c < 4; c++)
+    lv[0].blk[c] = cases[0].block[c];
+  for (c = 1; c < hNB; c++)
+    for (int q = 0; q < 4; q++)
+      if (cases[c].block[q] != cases[0].block[q])
+        lv[0].blk[0] = -1;
+  {
+    int mg = envint("MG", MAXLV);
+    mgmin = envint("MGMIN", 33);
+    nu1 = envint("NU1", 2);
+    nu2 = envint("NU2", 2);
+    nuc = envint("NUC", 10);
+    mgw = envreal("MGW", 0.7);
+    while (nlv < mg && nlv < MAXLV && lv[0].blk[0] >= 0 && coarsenable(nlv - 1)) {
+      build(nlv);
+      nlv++;
+    }
+  }
+  CK(cudaFuncSetAttribute(k_pblock, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                          (int)(sizeof(R) * 28 * lv[0].DI)));
+  CK(cudaGetSymbolAddress(&symp[0], DI));
+  CK(cudaGetSymbolAddress(&symp[1], DJ));
+  CK(cudaGetSymbolAddress(&symp[2], NT));
+  CK(cudaGetSymbolAddress(&symp[3], MAXW));
+  CK(cudaGetSymbolAddress(&symp[4], LT));
+  CK(cudaGetSymbolAddress(&symp[5], MT));
+  CK(cudaGetSymbolAddress(&symp[6], G));
+  CK(cudaStreamCreate(&stream));
+  use(0);
+  CK(cudaStreamSynchronize(stream));
+  for (c = 0; c < NA_; c++)
+    host[c] = lv[0].host[c];
+  if (times || getenv("VERB"))
+    for (c = 0; c < nlv; c++)
+      fprintf(stderr, "level %d: %dx%d\n", c, lv[c].L, lv[c].M);
   if (times)
     fprintf(stderr, "upload %.2f s\n", tnow() - t0);
   nlimt = envint("ITER", cases[0].nlimt);

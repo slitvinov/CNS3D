@@ -18,7 +18,13 @@ The programs solve the steady incompressible Navier–Stokes equations on body-f
 
 *Cns3d* is three-dimensional: symmetry at the first z plane, a wall at the last. *Cns2d* is two-dimensional: four z planes (n = 4), symmetry at both ends; it solves w and links the planes. *Ns2d* is two-dimensional with one plane of unknowns and no w: its equations are those of *cns3d* for a flow that does not depend on z. The metrics are those of the plane, and the source of the pressure correction weighs its three families of control volumes as at an interior plane. It reads the field file of *cns2d*, takes plane k = 2, and writes every plane with the same values and w = 0.
 
-The pressure is changed by the pressure correction less its value at a reference node: in *cns3d* node (2, 2, 2); in *cns2d* and *ns2d* the node at i = l − 1 or l − 2, j = (m − 1)/2 (integer part), whichever has the parity of i + j of the node changed. The correction can hold a part that alternates from node to node and moves no velocity; the two references keep it out of the pressure.
+The pressure is changed by the pressure correction less its value at a reference node: in *cns3d* node (2, 2, 2); in *cns2d* the node at i = l − 1 or l − 2, j = (m − 1)/2 (integer part), whichever has the parity of i + j of the node changed. The correction can hold a part that alternates from node to node and moves no velocity; the two references keep it out of the pressure.
+
+In *ns2d* the reference is node (l − 1, (m − 1)/2). The velocity gradient of the pressure is averaged over the four corners of a node and does not see a pressure that alternates from node to node. *Ns2d* therefore adds to the face velocities of the mass balance the difference between that averaged gradient and the gradient across the face, times the coefficient of the velocity correction. The difference vanishes as the grid is refined, and the pressure correction drives the mass balance to zero at every node. Before the correction is solved, the mean of its source is subtracted, and the outlet correction of u carries the subtracted mass.
+
+*Ns2d* sweeps lines: in i, then in j, odd lines then even ones, each solved exactly.
+
+*Ns2d* accelerates its iterations with multigrid. A coarse grid takes every second node of the finer one in i, in j, or in both: a direction is coarsened when its size n has n − 1 even, (n − 1)/2 + 1 is at least *MGMIN* and the block corners fall on coarse nodes. Grids are coarsened while either direction can be. On a coarse grid u, v and p are injected (p averaged over the cells it covers), the residuals of the finer grid are summed onto it as a source, and the same iteration is run; the change is interpolated back, times *MGW*. k, ε and the viscosity are taken from the fine grid and kept fixed on the coarse ones. One cycle is *NU1* iterations, the coarser grid, *NU2* iterations; the coarsest grid runs *NUC*.
 
     i = 1      inlet, fixed; the inflow is the flux of u through it
     i = l      outlet: copies its neighbour, plus a uniform correction to
@@ -39,7 +45,9 @@ Each case reads *dir*/control and *dir*/field and writes *dir*/field*suffix*. Th
 
     dir iterations n done | diverged | not converged
 
-The error of a variable is its largest change in an iteration; that of the pressure is its largest correction. A case is done when the errors of u, v, w, k, ε and the pressure add up to 1.E-5 or less (*ns2d*: no w). It has diverged when the sum passes 1.E3 after 20 iterations, or a field is not finite. The errors are tested every ten iterations, so *n* is a multiple of ten or the limit.
+The error of a variable is its largest change in an iteration; that of the pressure is its largest correction. A case is done when the errors of u, v, w, k, ε and the pressure add up to 1.E-5 or less. It has diverged when the sum passes 1.E3 after 20 iterations, or a field is not finite. The errors are tested every ten iterations, so *n* is a multiple of ten or the limit.
+
+*Ns2d* tests residuals instead. The residual of an equation at a node is what is left when the current field is put in it. For u, v, k and ε it is divided by the largest product of a node's central coefficient and value; for the mass balance, by the largest flux through a node's faces. A case is done when the largest of the five ratios is 1.E-5 or less. It has diverged when the sum of the errors passes 1.E3 after 200 iterations, or a field is not finite. The test is made after every ten iterations, or every cycle of multigrid, so *n* counts the iterations on the finest grid. In single precision the ratios stop falling near 4.E-6.
 
 The cases must share the grid size, laminar or turbulent, the iteration limit and the number of pressure sweeps.
 
@@ -65,7 +73,14 @@ The cases must share the grid size, laminar or turbulent, the iteration limit an
     TOL    convergence limit (1.E-5)
     TIMES  print the time of each stage
     VERB   print the errors of the first case every ten iterations:
-           u, v, w, p; in ns2d u, v, k, ε, p
+           u, v, w, p; in ns2d, at each test, u, v, k, ε, p and the
+           largest residual ratio, after the sizes of the grids
+    MG     ns2d: most grids (12); 1 is no multigrid
+    MGMIN  ns2d: smallest size of a coarse grid (33)
+    MGW    ns2d: factor of the coarse-grid change (0.7)
+    NU1    ns2d: iterations before the coarser grid (2)
+    NU2    ns2d: iterations after it (2)
+    NUC    ns2d: iterations on the coarsest grid (10)
 
 ## FILES
 
@@ -126,7 +141,7 @@ on standard error, exit status 1.
 
 ## BUGS
 
-*Cns2d* and *ns2d* sweep red and black; in three dimensions that stalls near 3.E-5, so *cns3d* sweeps in order.
+*Cns2d* sweeps red and black; in three dimensions that stalls near 3.E-5, so *cns3d* sweeps in order.
 
 In *cns2d* the pressure on planes 2 and 4 can differ from that on plane 3; the difference moves no u or v but drives w, and with the y spacing small next to the z spacing w grows until the case diverges. Its links to planes 1 and 4, which hold the previous iteration, act as an added relaxation, so the z spacing changes its convergence. *Ns2d* has neither.
 
