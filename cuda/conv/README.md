@@ -187,7 +187,7 @@ The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3. Iterations: 2250; 4
 
 The 0.1/0.05 runs use MGMIN 21 (../README.md): at 33 this grid has no coarser grid. The relaxation does not change xr.
 
-*Tstepf* refined, relaxation 0.7/0.7: 45×42 converges in 540 iterations, xr 5.201; 89×83 in 1050, xr 5.606; 177×165 in 3426, xr 5.737; 353×329, started from the 177×165 result interpolated, in 7446, xr 5.764; 705×657 stops at 10000 with the residual ratio 7.E-5 (BUGS).
+*Tstepf* refined, relaxation 0.7/0.7: 45×42 converges in 540 iterations, xr 5.201; 89×83 in 1050, xr 5.606; 177×165 in 3426, xr 5.737; 353×329, started from the 177×165 result interpolated, in 7446, xr 5.764; 705×657 stops at 10000 with the residual ratio 7.E-5; with the limit raised to 30000 it reaches 2.4E-6, xr 5.718 (BUGS).
 
 ### Turbulent bend (check case)
 
@@ -304,7 +304,7 @@ Under a CUDA MPS server a fatal error in one run stopped all the runs on that se
 
 In *ns2d* k and ε are solved on the finest grid only. Without the mixing of past states (AAM 0) the turbulent steps at relaxation 0.3/0.2 converge slowly, held back by k and the viscosity downstream of reattachment; solving k and ε on the coarse grids as well, or more inner sweeps, does not change that.
 
-*Tstepf* 705×657, where the first node lies below y+ 5, does not converge. Without the mixing it diverges at 726 iterations from the outlet, where the pressure is nearly undetermined: the outlet nodes copy the velocity of their neighbours, so a change of their pressure moves the flux into and out of them alike. With the mixing it stops at 10000 with the residual ratio 7.E-5; with the outlet pressure held fixed as well, the iteration settles into an oscillation of the separated shear layer near x 2–3, the residual ratio 5.E-4 to 7.E-4 at relaxation 0.7/0.7, 0.5/0.5 and 0.3/0.2.
+*Tstepf* 705×657, where the first node lies below y+ 5, does not converge. Without the mixing it diverges at 726 iterations from the outlet, where the pressure is nearly undetermined: the outlet nodes copy the velocity of their neighbours, so a change of their pressure moves the flux into and out of them alike. With the mixing the residual ratio falls slowly, 7.E-5 at 10000 iterations and 2.4E-6 at 30000; with the outlet pressure held fixed as well, the iteration settles into an oscillation of the separated shear layer near x 2–3, the residual ratio 5.E-4 to 7.E-4 at relaxation 0.7/0.7, 0.5/0.5 and 0.3/0.2.
 
 With MGMIN 21 laminar steps on 177×177 and 45×353, and the 45×45 central-difference steps from Re 200, stall with the residual ratio between 7.E-3 and 0.15; with MGMIN 33 they converge.
 
