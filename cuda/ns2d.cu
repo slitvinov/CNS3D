@@ -1773,6 +1773,159 @@ static void upload_all(void) {
 
 enum { RUNNING, CONVERGED, DIVERGED };
 
+#define AAMAX 12
+typedef struct {
+  const R *p[2 * AAMAX + 2];
+  double w[2 * AAMAX + 2];
+  int n;
+} Lin;
+__global__ void k_adot(const R *a, const R *b, size_t n, double *out) {
+  double s = 0;
+  for (size_t t = blockIdx.x * (size_t)blockDim.x + threadIdx.x; t < n;
+       t += (size_t)gridDim.x * blockDim.x)
+    s += (double)a[t] * b[t];
+  for (int o = 16; o > 0; o >>= 1)
+    s += __shfl_down_sync(0xffffffff, s, o);
+  if ((threadIdx.x & 31) == 0)
+    atomicAdd(out, s);
+}
+__global__ void k_asub(R *d, const R *a, const R *b, size_t n) {
+  for (size_t t = blockIdx.x * (size_t)blockDim.x + threadIdx.x; t < n;
+       t += (size_t)gridDim.x * blockDim.x)
+    d[t] = a[t] - b[t];
+}
+__global__ void k_alin(R *d, Lin L, size_t n, int pos) {
+  for (size_t t = blockIdx.x * (size_t)blockDim.x + threadIdx.x; t < n;
+       t += (size_t)gridDim.x * blockDim.x) {
+    double v = 0;
+    for (int q = 0; q < L.n; q++)
+      v += L.w[q] * L.p[q][t];
+    if (pos && v < 0.2 * d[t])
+      v = 0.2 * d[t];
+    d[t] = (R)v;
+  }
+}
+static void dsolve(int n, double *A, double *b) {
+  for (int k = 0; k < n; k++) {
+    int p = k;
+    for (int i = k + 1; i < n; i++)
+      if (fabs(A[i * n + k]) > fabs(A[p * n + k]))
+        p = i;
+    for (int j = 0; j < n; j++) {
+      double t = A[k * n + j];
+      A[k * n + j] = A[p * n + j];
+      A[p * n + j] = t;
+    }
+    double t = b[k];
+    b[k] = b[p];
+    b[p] = t;
+    for (int i = k + 1; i < n; i++) {
+      double f = A[i * n + k] / A[k * n + k];
+      for (int j = k; j < n; j++)
+        A[i * n + j] -= f * A[k * n + j];
+      b[i] -= f * b[k];
+    }
+  }
+  for (int k = n - 1; k >= 0; k--) {
+    for (int j = k + 1; j < n; j++)
+      b[k] -= A[k * n + j] * b[j];
+    b[k] /= A[k * n + k];
+  }
+}
+static const int axf[6] = {U_, V_, P_, DK_, DE_, VISE_};
+static struct {
+  int m, k, h;
+  size_t n;
+  R *X[AAMAX + 1], *F[AAMAX + 1], *xp;
+  double *dot;
+} aa;
+static void aa_init(int m, int k) {
+  aa.m = m > AAMAX ? AAMAX : m;
+  aa.k = k;
+  aa.h = 0;
+  aa.n = (size_t)hNB * hNT;
+  if (aa.m == 0)
+    return;
+  for (int q = 0; q <= aa.m; q++) {
+    aa.X[q] = (R *)dalloc(sizeof(R) * 6 * aa.n);
+    aa.F[q] = (R *)dalloc(sizeof(R) * 6 * aa.n);
+  }
+  aa.xp = (R *)dalloc(sizeof(R) * 6 * aa.n);
+  aa.dot = (double *)dalloc(sizeof(double) * 6 * ((AAMAX + 1) * (AAMAX + 2) / 2 + 1));
+  for (int f = 0; f < 6; f++)
+    CK(cudaMemcpy(aa.xp + f * aa.n, lv[0].hs.a[axf[f]], sizeof(R) * aa.n,
+                  cudaMemcpyDeviceToDevice));
+}
+static void aa_step(void) {
+  size_t n = aa.n;
+  if (aa.h == aa.m + 1) {
+    R *t1 = aa.X[0], *t2 = aa.F[0];
+    for (int q = 0; q < aa.m; q++) {
+      aa.X[q] = aa.X[q + 1];
+      aa.F[q] = aa.F[q + 1];
+    }
+    aa.X[aa.m] = t1;
+    aa.F[aa.m] = t2;
+    aa.h--;
+  }
+  CK(cudaMemcpy(aa.X[aa.h], aa.xp, sizeof(R) * 6 * n, cudaMemcpyDeviceToDevice));
+  for (int f = 0; f < 6; f++)
+    k_asub<<<512, 256, 0, stream>>>(aa.F[aa.h] + f * n, lv[0].hs.a[axf[f]], aa.xp + f * n, n);
+  aa.h++;
+  int H = aa.h, m = H - 1, np = H * (H + 1) / 2;
+  double hd[6 * ((AAMAX + 1) * (AAMAX + 2) / 2 + 1)], wf[6], g[(AAMAX + 1) * (AAMAX + 1)];
+  double cX[AAMAX + 1] = {0}, cF[AAMAX + 1] = {0};
+  CK(cudaMemset(aa.dot, 0, sizeof(double) * 6 * (np + 1)));
+  for (int f = 0; f < 6; f++) {
+    double *o = aa.dot + f * (np + 1);
+    k_adot<<<512, 256, 0, stream>>>(lv[0].hs.a[axf[f]], lv[0].hs.a[axf[f]], n, o + np);
+    for (int a = 0, q = 0; a < H; a++)
+      for (int b = a; b < H; b++, q++)
+        k_adot<<<512, 256, 0, stream>>>(aa.F[a] + f * n, aa.F[b] + f * n, n, o + q);
+  }
+  CK(cudaMemcpy(hd, aa.dot, sizeof(double) * 6 * (np + 1), cudaMemcpyDeviceToHost));
+  for (int f = 0; f < 6; f++)
+    wf[f] = hd[f * (np + 1) + np] > 0 ? 1 / hd[f * (np + 1) + np] : 0;
+  for (int a = 0, q = 0; a < H; a++)
+    for (int b = a; b < H; b++, q++) {
+      double v = 0;
+      for (int f = 0; f < 6; f++)
+        v += wf[f] * hd[f * (np + 1) + q];
+      g[a * H + b] = g[b * H + a] = v;
+    }
+  cX[m] = 1;
+  cF[m] = 1;
+  if (m > 0) {
+    double A[AAMAX * AAMAX], c[AAMAX], tr = 0;
+    for (int i = 0; i < m; i++) {
+      for (int l = 0; l < m; l++)
+        A[i * m + l] = g[(i + 1) * H + l + 1] - g[(i + 1) * H + l] - g[i * H + l + 1] + g[i * H + l];
+      c[i] = g[(i + 1) * H + m] - g[i * H + m];
+      tr += A[i * m + i];
+    }
+    for (int i = 0; i < m; i++)
+      A[i * m + i] += 1e-10 * tr;
+    dsolve(m, A, c);
+    for (int i = 0; i < m; i++) {
+      cX[i + 1] -= c[i];
+      cX[i] += c[i];
+      cF[i + 1] -= c[i];
+      cF[i] += c[i];
+    }
+  }
+  for (int f = 0; f < 6; f++) {
+    Lin L;
+    L.n = 0;
+    for (int q = 0; q < H; q++) {
+      L.p[L.n] = aa.X[q] + f * n;
+      L.w[L.n++] = cX[q];
+      L.p[L.n] = aa.F[q] + f * n;
+      L.w[L.n++] = cF[q];
+    }
+    k_alin<<<512, 256, 0, stream>>>(lv[0].hs.a[axf[f]], L, n, f >= 3);
+    CK(cudaMemcpy(aa.xp + f * n, lv[0].hs.a[axf[f]], sizeof(R) * n, cudaMemcpyDeviceToDevice));
+  }
+}
 static void run(int nlimt, R erext, int *iters, int *state) {
   cudaGraph_t graph;
   cudaGraphExec_t exec;
@@ -1824,6 +1977,8 @@ static void run(int nlimt, R erext, int *iters, int *state) {
           fprintf(stderr, "%d %g %g %g %g %g %g\n", it * per, (double)e[1], (double)e[2],
                   (double)e[5], (double)e[6], (double)e[0], (double)rm);
       }
+    if (aa.m > 0 && it % aa.k == 0 && left > 0)
+      aa_step();
     if (changed)
       for (int l = 0; l < nlv; l++)
         CK(cudaMemcpy(lv[l].hs.act, act, sizeof(int) * hNB, cudaMemcpyHostToDevice));
@@ -1876,6 +2031,17 @@ static void write_fields(const char *suffix) {
     bad += write_case(c, suffix);
   if (bad)
     die("%d of %d output files not written", bad, hNB);
+}
+
+static int envnat(const char *name, int def) {
+  char *s = getenv(name), *end;
+  long v;
+  if (!s)
+    return def;
+  v = strtol(s, &end, 10);
+  if (*s == 0 || *end != 0 || v < 0 || v > 1000000000)
+    die("%s=%s: not a non-negative integer", name, s);
+  return (int)v;
 }
 
 static int envint(const char *name, int def) {
@@ -1978,6 +2144,7 @@ int main(int argc, char **argv) {
   erext = envreal("TOL", 1.E-5f);
   iters = ial(hNB);
   state = ial(hNB);
+  aa_init(envnat("AAM", 5), envint("AAK", 10));
   run(nlimt, erext, iters, state);
   if (times)
     fprintf(stderr, "iterate %.2f s\n", tnow() - t0);

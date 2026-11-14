@@ -26,6 +26,8 @@ In *ns2d* the reference is node (l − 1, (m − 1)/2). The velocity gradient of
 
 *Ns2d* accelerates its iterations with multigrid. A coarse grid takes every second node of the finer one in i, in j, or in both: a direction is coarsened when (n − 1)/2 + 1, n its size, is at least *MGMIN* and the block corners fall on coarse nodes. When n − 1 is odd the last coarse interval spans three fine ones. Grids are coarsened while either direction can be. On a coarse grid u, v and p are injected (p averaged over the cells it covers), the residuals of the finer grid are summed onto it as a source, and the same iteration is run; the change is interpolated back, times *MGW*. k, ε and the viscosity are taken from the fine grid and kept fixed on the coarse ones. One cycle is *NU1* iterations, the coarser grid, *NU2* iterations; the coarsest grid runs *NUC*.
 
+*Ns2d* also mixes past states (Anderson acceleration). After every *AAK* cycles the state x (u, v, p, k, ε and the viscosity) has become G(x); of the last *AAM* + 1 pairs (x, G(x) − x) it takes the combination whose change G(x) − x is smallest in the least-squares sense, each field weighted by the inverse of its sum of squares, and continues from x + (G(x) − x) of that combination. k and ε are kept at least one fifth of their values before the step. The slow parts of the iteration, the turbulence quantities behind the step at low relaxation, are reduced this way.
+
     i = 1      inlet, fixed; the inflow is the flux of u through it
     i = l      outlet: copies its neighbour, plus a uniform correction to
                v in cns3d, u in cns2d and ns2d, that makes the flux of that
@@ -81,6 +83,8 @@ The cases must share the grid size, laminar or turbulent, the iteration limit an
     NU1    ns2d: iterations before the coarser grid (3)
     NU2    ns2d: iterations after it (3)
     NUC    ns2d: iterations on the coarsest grid (10)
+    AAM    ns2d: past states mixed (5); 0 is no mixing
+    AAK    ns2d: cycles between mixings (10)
 
 ## FILES
 

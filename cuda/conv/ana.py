@@ -98,8 +98,15 @@ def xr(d, suf=".o"):
     a, L, M, N, h = read(d, suf)
     x = a[1, :, 0, 0]
     u = a[1, :, 1, 3]
-    z = [float(np.interp(0, [u[i - 1], u[i]], [x[i - 1], x[i]])) for i in range(max(int(h[4]), 2), L) if u[i - 1] < 0 <= u[i]]
-    return z[0] if z else None
+    i0, best, z, s = max(int(h[4]), 2), 0, None, None
+    for i in range(i0 - 1, L):
+        if u[i] < 0 and s is None:
+            s = x[i]
+        if i > i0 - 1 and u[i - 1] < 0 <= u[i] and s is not None:
+            if x[i] - s > best:
+                best, z = x[i] - s, float(np.interp(0, [u[i - 1], u[i]], [x[i - 1], x[i]]))
+            s = None
+    return z
 
 
 def step(d, suf):
