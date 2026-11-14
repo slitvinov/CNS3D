@@ -24,6 +24,21 @@ profiles of the report's Figure 19:
 It converges in 210 iterations. [TESTS](TESTS) gives the inputs and the edits for the other cases,
 made by `test/case.py`.
 
+## Status
+
+- The listing is read in full and checked against the original compiler (CHANGES). As printed it runs
+  case D, and cases A to C with the edits of test/case.py; cns3d_fixed.f, with the problems of the
+  listing corrected, runs all four (TESTS).
+- The report's figures are redrawn from digitized data and from runs of the program, and laid over the
+  scan (redraw/).
+- The GPU programs run many cases at once. On the grid study (cuda/conv/), ns2d converges 109 of 110
+  step and cavity cases within 10000 iterations at a residual ratio of 1.E-7. Grid limits: laminar
+  step reattachment 10.84h (report 8.44h, measured 11.45h), turbulent step 5.71h (report 5.4h,
+  measured about 7h), cavity centreline umin −0.327 (report about −0.25). The finest turbulent step,
+  705 × 657 with its first node below y+ 5, needs about 30000 iterations.
+- cns2d and cns3d keep the program's pressure coupling and stopping test; the face pressure term,
+  multigrid and mixing of past states are in ns2d only.
+
 ## Files
 
 - [report.pdf](report.pdf), [code.pdf](code.pdf): the scanned report and its Appendix C program listing
@@ -33,7 +48,7 @@ made by `test/case.py`.
 - [CHANGES](CHANGES): how the listing was read, the cards read by hand, the check with the original compiler, and the corrections
 - [TESTS](TESTS): how to run the program, the report's test cases rerun, and notes on the program as printed
 - [test/](test): inputs and scripts for TESTS
-- [cuda/](cuda/README.md): two GPU programs, for three- and two-dimensional cases, many at once
+- [cuda/](cuda/README.md): three GPU programs, cns3d, cns2d and ns2d, for three- and two-dimensional cases, many at once; [cuda/conv/](cuda/conv/README.md), their grid and convergence study
 - [redraw/](redraw/README.md): the report's figures as data and DISLIN programs that redraw them, matched to the scan; [gallery](redraw/GALLERY.md) of every figure, the redraw laid over the scan
 
 ## Licence

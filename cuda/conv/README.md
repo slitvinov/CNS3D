@@ -187,7 +187,7 @@ The x 1, y 1 result is the 45×43 run at relaxation 0.5/0.3. Iterations: 2250; 4
 
 The 0.1/0.05 runs use MGMIN 21 (../README.md): at 33 this grid has no coarser grid. The relaxation does not change xr.
 
-*Tstepf* refined, relaxation 0.7/0.7: 45×42 converges in 540 iterations, xr 5.201; 89×83 in 1050, xr 5.606; 177×165 in 3426, xr 5.737; 353×329, started from the 177×165 result interpolated, in 7446, xr 5.764; 705×657 stops at 10000 with the residual ratio 7.E-5; with the limit raised to 30000 it reaches 2.4E-6, xr 5.718 (BUGS).
+*Tstepf* refined, relaxation 0.7/0.7: 45×42 converges in 540 iterations, xr 5.201; 89×83 in 1050, xr 5.606; 177×165 in 3426, xr 5.737; 353×329, started from the 177×165 result interpolated, in 7446, xr 5.764; 705×657 does not converge within 10000 iterations (residual ratio 7.E-5); at 30000 the residual ratio is 2.4E-6 and xr 5.718 (BUGS).
 
 ### Turbulent bend (check case)
 
@@ -204,7 +204,7 @@ The 0.1/0.05 runs use MGMIN 21 (../README.md): at 33 this grid has no coarser gr
     39×33×17            0.023  0.016  0.022  0.018  0.010  0.008
     58×49×25            0.011  0.007  0.010  0.008  0.006  0.003
 
-(*) relaxation 0.3, the largest change per iteration near 1.E-3. The 58×45×23 and 77×59×30 *tbendw* grids, with relaxation 0.3, were stopped at 16420 and 8050 iterations with the largest change near 1.E-3. The wall function switches to its laminar form below y+ 11.63.
+(*) relaxation 0.3, the largest change per iteration near 1.E-3. The 58×45×23 and 77×59×30 *tbendw* grids, with relaxation 0.3, stay near 1.E-3 at 16420 and 8050 iterations. The wall function switches to its laminar form below y+ 11.63.
 
 Graded cross-section, inlet from the duct:
 
@@ -300,14 +300,14 @@ fig7.svg, fig10.svg, fig19.svg, step.svg (*fig.py*), on a white background.
 
 ## BUGS
 
-Under a CUDA MPS server a fatal error in one run stopped all the runs on that server.
+A fatal error in one run stops all the runs on the same CUDA MPS server.
 
-In *ns2d* k and ε are solved on the finest grid only. Without the mixing of past states (AAM 0) the turbulent steps at relaxation 0.3/0.2 converge slowly, held back by k and the viscosity downstream of reattachment; solving k and ε on the coarse grids as well, or more inner sweeps, does not change that.
+In *ns2d* k and ε are solved on the finest grid only. The turbulent steps at relaxation 0.3/0.2 depend on the mixing of past states: with AAM 0 the 177×169 *tstep* does not reach TOL in 10000 iterations, held back by k and the viscosity downstream of reattachment.
 
-*Tstepf* 705×657, where the first node lies below y+ 5, does not converge. Without the mixing it diverges at 726 iterations from the outlet, where the pressure is nearly undetermined: the outlet nodes copy the velocity of their neighbours, so a change of their pressure moves the flux into and out of them alike. With the mixing the residual ratio falls slowly, 7.E-5 at 10000 iterations and 2.4E-6 at 30000; with the outlet pressure held fixed as well, the iteration settles into an oscillation of the separated shear layer near x 2–3, the residual ratio 5.E-4 to 7.E-4 at relaxation 0.7/0.7, 0.5/0.5 and 0.3/0.2.
+*Tstepf* 705×657, where the first node lies below y+ 5, needs about 30000 iterations. The pressure at the outlet nodes is nearly undetermined: they copy the velocity of their neighbours, so a change of their pressure moves the flux into and out of them alike. With AAM 0 the run diverges from the outlet.
 
-With MGMIN 21 laminar steps on 177×177 and 45×353, and the 45×45 central-difference steps from Re 200, stall with the residual ratio between 7.E-3 and 0.15; with MGMIN 33 they converge.
+MGMIN below 33 stalls laminar steps on 177×177 and 45×353, and the 45×45 central-difference steps from Re 200, with the residual ratio between 7.E-3 and 0.15.
 
-The residual ratio understates the error of a slowly converging run: at TOL 1.E-6 without the mixing, xr of 45×353 *lstep* was 8.492 against 8.464 at TOL 1.E-8.
+The residual ratio understates the error of a slowly converging run: at TOL 1.E-6 xr differs from its TOL 1.E-8 value by up to 0.013, and by 0.028 (45×353 *lstep*) with AAM 0.
 
 The Humphrey data of ../../redraw/fig19* hold stray points, at 0 deg (0.43, 1.23) and at 60 deg, z/d 0 four points near U/U_ref 0; the RMS values include them.

@@ -27,21 +27,18 @@ and 19 percent.
 | 18 bend secondary velocity | `fig18{a,b,c,d}.dat` | CNS3D, case D | 72% / 76% |
 | 19 bend profiles | `fig19{a,b}_theta*_*.csv` | digitized, `fig19.py` | 85% / 85% |
 
-In `fig5b_nodes.csv` the lines across of columns i = 25 to 30 were found again after `fig5.py`: on
-columns 27 and 28 it took a mark near the top for a line, which shifted the rows below by one and gave
-a zigzag. Each was searched again within 9 px of the line through its neighbours.
+In `fig5b_nodes.csv` each line across of columns i = 25 to 30 is located within 9 px of the line
+through its neighbours; on columns 27 and 28 a mark near the top would otherwise be taken for a line.
 
 The scans used: `../fig/p27-1.png` (Figure 10); the others are cropped from report.pdf rendered at
 300 dpi (`pdftoppm -r 300 -gray`), with a margin, turned upright where the page is sideways, and
 rotated to undo the skew measured from the ticks or axes: Figure 7 by 0.52 deg, 8 by -0.405, 13 by
 -0.44, 16 by -0.745, 19 by -0.31 (`figN_deskew.png`, `figN_page.png`). `fig16_bscan.png` is the
 Figure 16 scan with the sketch (a) blanked, as it is not redrawn.
-The scans of Figures 5a, 5b and 16(b) were used tilted until `score.py` measured each against
-its redraw (a rigid fit of rotation and shift); they are now turned by -0.32, -0.24 and +0.11
-deg (counter-clockwise positive, `fig5a_deskew.png`, `fig5b_deskew.png`, `fig16b_deskew.png`) and
-the drawings fitted again. Figure 11 is turned by -0.43 deg (`fig11_deskew.png`), which levels its
-four walls to within 0.04 deg; the -0.26 deg first measured against the redraw left them sloping by
-3 to 4 px over the width, as the redraw had been fitted to the tilted scan. The rigid fit still asks
+The scans of Figures 5a, 5b and 16(b) are turned by -0.32, -0.24 and +0.11 deg (counter-clockwise
+positive, `fig5a_deskew.png`, `fig5b_deskew.png`, `fig16b_deskew.png`), the rotation `score.py`
+measures against each redraw with a rigid fit of rotation and shift. Figure 11 is turned by -0.43 deg
+(`fig11_deskew.png`), which levels its four walls to within 0.04 deg. The rigid fit still asks
 for -0.12 deg and a 1.9 px shift, from the bubbles, where the drawings differ; the walls lie on the
 scan's.
 
@@ -94,7 +91,7 @@ and 5.3h (report 5.4h), and k reaches 0.063. Figures 14 and 15 are drawn as the 
 with the channel downstream of the step at 2/3 of the scale upstream (`SXD` = 88.8 px/h, fixed by the
 report's 5.4h label, not fitted: fitted, it took up our shorter bubble). Their scans are turned
 clockwise by 0.31 and 0.29 deg (`fig14_deskew.png`, `fig15_deskew.png`, from the top wall and the
-step face); the run's grid, hybrid factor and relaxation were searched against them (TESTS).
+step face); the run's grid, hybrid factor and relaxation are those that match them best (TESTS).
 Figure 11 differs from the report inside the bubbles: the scan's contours reach into the corner
 at the foot of the step, and in (a) its vortex centre is near 4h, ours near 6h. A grid clustered
 towards the step face (432 runs, TESTS) draws contours into the corner but shortens the bubble and
